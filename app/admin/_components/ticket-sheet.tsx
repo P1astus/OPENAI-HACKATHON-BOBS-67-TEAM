@@ -1,6 +1,6 @@
 "use client";
 
-import { Code2, LoaderCircle, X } from "lucide-react";
+import { Code2, History, LoaderCircle, X } from "lucide-react";
 import { useId, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import {
@@ -20,10 +20,10 @@ const weights = [
   ["distance", "Distance 20%"],
 ] as const satisfies readonly [keyof MatchCandidate["parts"], string][];
 
-function DetailSection({ title, children }: { title: string; children: ReactNode }) {
+function DetailSection({ title, id, children }: { title: string; id?: string; children: ReactNode }) {
   return (
     <section>
-      <h3 className="section-label mb-2 px-1 font-semibold">{title}</h3>
+      <h3 id={id} tabIndex={id ? -1 : undefined} className="section-label mb-2 scroll-mt-4 px-1 font-semibold">{title}</h3>
       {children}
     </section>
   );
@@ -37,6 +37,7 @@ function TicketDetails({ ticket, bootstrap, companies }: {
   const [pendingCompany, setPendingCompany] = useState<string | null>(null);
   const [showRaw, setShowRaw] = useState(false);
   const rawId = useId();
+  const timelineId = useId();
   const { triage, consent } = ticket;
   const tenant = bootstrap.people.find((person) => person.id === ticket.tenant_id);
   const canAssign = ticket.status === "needs_human" || ticket.status === "emergency";
@@ -64,6 +65,11 @@ function TicketDetails({ ticket, bootstrap, companies }: {
             <StatusPill status={ticket.status} />
           </div>
           <blockquote className="text-base leading-relaxed whitespace-pre-wrap wrap-anywhere">“{ticket.claim}”</blockquote>
+          {ticket.events.length > 0 && (
+            <a href={`#${timelineId}`} className="inline-flex min-h-11 items-center gap-2 rounded-full bg-primary/8 px-3 text-sm font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-ring">
+              <History aria-hidden="true" className="size-4" /> View timeline
+            </a>
+          )}
         </div>
       </DetailSection>
       <DetailSection title="Triage">
@@ -132,11 +138,11 @@ function TicketDetails({ ticket, bootstrap, companies }: {
                         variant="secondary"
                         className="min-h-11 px-4"
                         aria-label={`${assigning ? "Assigning" : "Assign"} ${company?.name ?? candidate.company_id}`}
-                        disabled={pendingCompany !== null}
+                        disabled={pendingCompany !== null || company?.status !== "active"}
                         onClick={() => assign(candidate.company_id)}
                       >
                         {assigning && <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />}
-                        {assigning ? "Assigning…" : "Assign"}
+                        {assigning ? "Assigning…" : company?.status === "active" ? "Assign" : "Unavailable"}
                       </Button>
                     </div>
                   )}
@@ -164,7 +170,7 @@ function TicketDetails({ ticket, bootstrap, companies }: {
           </dl>
         ) : <EmptyState title="No consent yet" />}
       </DetailSection>
-      <DetailSection title="Timeline">
+      <DetailSection title="Timeline" id={timelineId}>
         {ticket.events.length ? <Timeline events={ticket.events} /> : <EmptyState title="No events yet" />}
       </DetailSection>
       <div className="shadow-soft rounded-[14px] bg-card p-2">
@@ -198,7 +204,7 @@ export function TicketSheet({ id, onClose, restoreFocus }: { id: string | null; 
   return (
     <Sheet open={id !== null} onOpenChange={(open) => { if (!open) onClose(); }}>
       <SheetContent
-        className="gap-0 bg-background data-[side=right]:w-full data-[side=right]:sm:max-w-[560px]"
+        className="gap-0 bg-background data-[side=right]:w-full data-[side=right]:sm:max-w-[620px]"
         showCloseButton={false}
         onCloseAutoFocus={(event) => {
           event.preventDefault();

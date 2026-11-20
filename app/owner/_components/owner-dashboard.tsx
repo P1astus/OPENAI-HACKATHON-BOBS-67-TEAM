@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarDays, CircleCheck, CircleAlert } from "lucide-react";
+import { CalendarDays, CircleCheck, CircleAlert, Wallet } from "lucide-react";
 import { EmptyState, ErrorBlock, LoadingBlock, PageHeader } from "@/components/index";
 import { Badge } from "@/components/ui/badge";
 import { useBootstrap, useCompanies, useTickets, useViewer } from "@/lib/hooks";
@@ -42,28 +42,35 @@ export function OwnerDashboard() {
           </>
         )}
       />
-      <main key={viewer} className="fade-in mx-auto w-full max-w-5xl space-y-9 px-4 pb-12 sm:px-6">
+      <main key={viewer} className="fade-in mx-auto w-full max-w-7xl space-y-9 px-4 pb-12 sm:px-6">
         {bootstrap.data && !owner && !bootstrap.error
           ? <EmptyState title="Owner unavailable" description="No owner matches this viewer." />
           : (
             <>
-              <div className="grid items-start gap-6 lg:grid-cols-3 lg:gap-4">
-                {groups.map(({ key, title, empty, icon: Icon, tone, tickets: items }) => (
-                  <section key={key} aria-labelledby={`heading-${key}`} className="min-w-0 space-y-3">
-                    <h2 id={`heading-${key}`} className="section-label flex items-center gap-2 px-1 font-medium">
-                      <Icon aria-hidden="true" className={`size-4 ${tone}`} />{title}
-                      {items && !tickets.error && <Badge variant="secondary" className="rounded-full normal-case tabular-nums">{items.length}</Badge>}
-                    </h2>
-                    {error ? <ErrorBlock message={error.message} onRetry={() => void Promise.all([bootstrap.mutate(), tickets.mutate(), companies.mutate()])} />
-                      : !items || !units || !companyList ? <LoadingBlock />
-                      : !items.length ? <EmptyState title={empty} />
-                      : items.map((ticket) => (
-                          <OwnerTicket key={ticket.id} ticket={ticket}
-                            company={companyList.find(({ id }) => id === ticket.company_id)}
-                            unit={units.find(({ id }) => id === ticket.unit_id)} />
-                        ))}
-                  </section>
-                ))}
+              <div className="space-y-4">
+                {owner && (
+                  <a href="#invoices-heading" className="inline-flex min-h-11 items-center gap-2 rounded-full bg-card px-4 text-sm font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-ring">
+                    <Wallet aria-hidden="true" className="size-4" /> Wallet payments
+                  </a>
+                )}
+                <div className="grid items-start gap-6 lg:grid-cols-3 lg:gap-4">
+                  {groups.map(({ key, title, empty, icon: Icon, tone, tickets: items }) => (
+                    <section key={key} aria-labelledby={`heading-${key}`} className="min-w-0 space-y-3">
+                      <h2 id={`heading-${key}`} className="section-label flex items-center gap-2 px-1 font-medium">
+                        <Icon aria-hidden="true" className={`size-4 ${tone}`} />{title}
+                        {items && !tickets.error && <Badge variant="secondary" className="rounded-full normal-case tabular-nums">{items.length}</Badge>}
+                      </h2>
+                      {error ? <ErrorBlock message={error.message} onRetry={() => void Promise.all([bootstrap.mutate(), tickets.mutate(), companies.mutate()])} />
+                        : !items || !units || !companyList ? <LoadingBlock />
+                        : !items.length ? <EmptyState title={empty} />
+                        : items.map((ticket) => (
+                            <OwnerTicket key={ticket.id} ticket={ticket}
+                              company={companyList.find(({ id }) => id === ticket.company_id)}
+                              unit={units.find(({ id }) => id === ticket.unit_id)} />
+                          ))}
+                    </section>
+                  ))}
+                </div>
               </div>
               <OwnerInvoices ownerId={viewer} units={units} companies={companyList} people={bootstrap.data?.people}
                 lookupError={bootstrap.error ?? companies.error}

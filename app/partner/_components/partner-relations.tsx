@@ -73,7 +73,7 @@ export function PartnerSupport() {
             if (!message.trim()) return;
             setMessage("");
             setOpen(false);
-            toast.success("Support message submitted in the demo");
+            toast.info("Support message previewed.");
           }}>
             <div className="space-y-2">
               <label htmlFor="support-message" className="font-medium">Message</label>
@@ -81,7 +81,7 @@ export function PartnerSupport() {
                 onChange={(event) => setMessage(event.target.value)} placeholder="How can we help?" />
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button type="submit" className="min-h-11" disabled={!message.trim()}>Send message</Button>
+              <Button type="submit" className="min-h-11" disabled={!message.trim()}>Preview message</Button>
               <SheetClose asChild><Button type="button" variant="secondary" className="min-h-11">Cancel</Button></SheetClose>
             </div>
           </form>

@@ -45,15 +45,31 @@ export function Appointment({ ticket, company }: { ticket: Ticket & { appointmen
   );
 }
 
-export function RequestRow({ ticket, onPickTime }: { ticket: Ticket; onPickTime: (trigger: HTMLButtonElement) => void }) {
+export function isCallingCompany(ticket: Ticket) {
+  if (ticket.status !== "matched" || ticket.proposed_slots.length > 0) return false;
+  const latest = ticket.events.findLast(({ type }) =>
+    type === "matched" || type === "calling_company" || type === "call_started" || type === "slots_proposed");
+  return latest?.type === "calling_company" || latest?.type === "call_started";
+}
+
+export function RequestRow({ ticket, company, onPickTime }: {
+  ticket: Ticket;
+  company?: CompanyView;
+  onPickTime: (trigger: HTMLButtonElement) => void;
+}) {
   const bookable = ticket.status === "matched" && !ticket.appointment_at && ticket.proposed_slots.length > 0;
+  const update = isCallingCompany(ticket)
+    ? `Calling ${company?.name ?? "the company"} for times…`
+    : ticket.owner_approval === "rejected" ? "Your landlord declined the estimate" : null;
 
   return (
     <div>
       <GroupedRow
         title={ticket.triage?.summary || ticket.claim}
-        subtitle={<time dateTime={ticket.created_at}>{formatDate(ticket.created_at)}</time>}
+        subtitle={update ?? <time dateTime={ticket.created_at}>{formatDate(ticket.created_at)}</time>}
         value={<StatusPill status={ticket.status} />}
+        onClick={bookable ? undefined : (event) => onPickTime(event.currentTarget)}
+        chevron={!bookable}
       />
       {bookable && (
         <div className="px-4 pb-3">

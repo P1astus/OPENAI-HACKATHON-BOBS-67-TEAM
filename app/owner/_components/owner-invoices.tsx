@@ -83,7 +83,7 @@ export function OwnerInvoices({ ownerId, units, companies, people, lookupError, 
   return (
     <section aria-labelledby="invoices-heading" className="space-y-3">
       <div className="space-y-1">
-        <h2 id="invoices-heading" className="text-xl font-semibold tracking-tight">Repairs paid from your wallet</h2>
+        <h2 id="invoices-heading" tabIndex={-1} className="scroll-mt-20 text-xl font-semibold tracking-tight">Repairs paid from your wallet</h2>
         <p className="text-sm text-muted-foreground">centrix pays finished repairs from your wallet. Payment terms with the company are handled by reltix.</p>
       </div>
       {error ? <ErrorBlock message={error.message} onRetry={() => void Promise.all([invoices.mutate(), retryLookups()])} />

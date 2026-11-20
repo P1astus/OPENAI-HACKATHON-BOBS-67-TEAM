@@ -365,7 +365,7 @@ function proposeSlots(ticket: Ticket, company: Company) {
     return;
   }
 
-  addEvent(ticket, "agent", "company_contacted", `Contacting ${company.name} to agree on a time.`);
+  addEvent(ticket, "agent", "calling_company", `Contacting ${company.name} to agree on a time.`);
   const currentState = state;
   setTimeout(() => {
     if (state !== currentState || ticket.status !== "matched") return;
@@ -464,6 +464,9 @@ export async function approveTicket(id: string, approved: boolean): Promise<Tick
   if (approved) {
     ticket.status = "matched";
     proposeSlots(ticket, company);
+  } else {
+    ticket.status = "needs_human";
+    addEvent(ticket, "agent", "needs_human", "The property manager will decide the next step.");
   }
   return structuredClone(ticket);
 }

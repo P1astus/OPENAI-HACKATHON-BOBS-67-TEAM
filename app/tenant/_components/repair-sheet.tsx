@@ -1,17 +1,17 @@
 "use client";
 
-import { AlertTriangle, Check, CircleCheck, Clock3, LoaderCircle, ShieldCheck, UserRound } from "lucide-react";
+import { AlertTriangle, CircleCheck, Clock3, LoaderCircle, PhoneCall, ShieldCheck, UserRound } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { toast } from "sonner";
 import { EmptyState, ErrorBlock, formatDateTime, formatSlot, LoadingBlock, Money, PartnerPill, RatingMeter } from "@/components/index";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { bookSlot, createTicket, type CompanyView } from "@/lib/api-client";
 import { refreshAll, useCompanies, useTicket } from "@/lib/hooks";
 import type { Ticket, Unit } from "@/types";
+import { isCallingCompany } from "./repair-activity";
 import { TenantSheet } from "./tenant-sheet";
 
-const steps = ["Reading your message…", "Finding the right company…", "Checking free times…"];
+const steps = ["Reviewing your report…", "Checking repair options…", "Still working on your request…"];
 
 export function RepairSheet({
   mode, unit, onClose, restoreFocus,
@@ -23,32 +23,37 @@ export function RepairSheet({
 }) {
   const [busy, setBusy] = useState(false);
   const [booked, setBooked] = useState("");
-  const timeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [hasReport, setHasReport] = useState(false);
+  const doneButton = useRef<HTMLButtonElement>(null);
 
-  useEffect(() => () => {
-    if (timeout.current !== null) clearTimeout(timeout.current);
-  }, []);
+  useEffect(() => {
+    if (booked) doneButton.current?.focus();
+  }, [booked]);
 
   function close() {
-    if (timeout.current !== null) clearTimeout(timeout.current);
     setBooked("");
+    setHasReport(false);
     onClose();
   }
 
   const reporting = mode === "report";
+  const writing = reporting && !hasReport;
   return (
     <TenantSheet
       open={mode !== null}
       onClose={close}
       restoreFocus={restoreFocus}
       busy={busy}
-      title={reporting ? "Report a problem" : "Book your repair"}
-      description={reporting ? "Tell us what needs fixing at home." : "Choose a time that works for you."}
+      title={booked ? "Appointment confirmed" : writing ? "Report a problem" : "Your repair request"}
+      description={booked ? "You can find this visit under Upcoming." : writing ? "Tell us what needs fixing at home." : "See the latest update or choose a time."}
     >
       {booked ? (
-        <div role="status" className="motion-safe:fade-in flex items-start gap-3 rounded-xl bg-success/12 p-4 font-medium">
-          <CircleCheck className="size-5 shrink-0 text-success" aria-hidden="true" />
-          <p>{booked}</p>
+        <div className="space-y-4">
+          <div role="status" className="motion-safe:fade-in flex items-start gap-3 rounded-xl bg-success/12 p-4 font-medium">
+            <CircleCheck className="size-5 shrink-0 text-success" aria-hidden="true" />
+            <p>{booked}</p>
+          </div>
+          <Button ref={doneButton} type="button" className="min-h-12 w-full rounded-full" onClick={close}>Done</Button>
         </div>
       ) : mode && (
         <RepairFlow
@@ -57,10 +62,8 @@ export function RepairSheet({
           unit={unit}
           busy={busy}
           setBusy={setBusy}
-          onBooked={(message) => {
-            setBooked(message);
-            timeout.current = setTimeout(close, 1700);
-          }}
+          onReported={() => setHasReport(true)}
+          onBooked={setBooked}
         />
       )}
     </TenantSheet>
@@ -68,17 +71,19 @@ export function RepairSheet({
 }
 
 function RepairFlow({
-  initialTicket, unit, busy, setBusy, onBooked,
+  initialTicket, unit, busy, setBusy, onReported, onBooked,
 }: {
   initialTicket?: Ticket;
   unit?: Unit;
   busy: boolean;
   setBusy: (value: boolean) => void;
+  onReported: () => void;
   onBooked: (message: string) => void;
 }) {
   const [claim, setClaim] = useState("");
   const [reported, setReported] = useState<Ticket>();
   const [step, setStep] = useState(0);
+  const [sendError, setSendError] = useState("");
   const result = useRef<HTMLDivElement>(null);
   const snapshot = reported ?? initialTicket;
   const ticketQuery = useTicket(snapshot?.id);
@@ -91,20 +96,22 @@ function RepairFlow({
 
   async function send(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!unit?.tenant_id || !claim.trim() || busy) return;
+    if (!unit?.tenant_id || claim.trim().length < 3 || busy) return;
 
     setBusy(true);
+    setSendError("");
     setStep(0);
-    const matching = setTimeout(() => setStep(1), 850);
-    const slots = setTimeout(() => setStep(2), 1700);
+    const matching = setTimeout(() => setStep(1), 1400);
+    const waiting = setTimeout(() => setStep(2), 6000);
     try {
       setReported(await createTicket({ tenant_id: unit.tenant_id, unit_id: unit.id, claim: claim.trim() }));
+      onReported();
       void refreshAll();
     } catch (err) {
-      toast.error((err as Error).message);
+      setSendError((err as Error).message);
     } finally {
       clearTimeout(matching);
-      clearTimeout(slots);
+      clearTimeout(waiting);
       setBusy(false);
     }
   }
@@ -140,31 +147,34 @@ function RepairFlow({
     );
   }
 
+  if (busy) {
+    return (
+      <div className="motion-safe:fade-in space-y-4 py-1">
+        <p className="max-h-28 overflow-y-auto rounded-2xl bg-primary/8 p-4 wrap-anywhere">{claim.trim()}</p>
+        <div role="status" className="flex items-center gap-3 rounded-2xl bg-background p-4">
+          <LoaderCircle className="size-5 shrink-0 motion-safe:animate-spin text-primary" aria-hidden="true" />
+          <p className="font-medium">{steps[step]}</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <form onSubmit={send} className="space-y-3">
+    <form onSubmit={send} className="space-y-4">
       <Textarea
         aria-label="What's wrong?"
-        placeholder="What's wrong? e.g. The heating is cold in every room"
+        aria-invalid={Boolean(sendError)}
+        placeholder="What’s wrong? E.g. The heating is cold in every room."
         value={claim}
-        onChange={(event) => setClaim(event.target.value)}
-        className="min-h-28 rounded-xl bg-background p-3"
+        onChange={(event) => { setClaim(event.target.value); setSendError(""); }}
+        className="min-h-30 rounded-2xl bg-background p-4 md:text-base"
+        maxLength={2000}
         required
-        disabled={busy}
       />
-      <Button type="submit" disabled={busy || !claim.trim()} className="min-h-11 w-full rounded-full">
-        {busy && <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />}
-        {busy ? "Sending…" : "Send"}
+      {sendError && <p role="alert" className="text-sm font-medium text-destructive">{sendError}</p>}
+      <Button type="submit" disabled={claim.trim().length < 3} className="min-h-12 w-full rounded-full text-base">
+        Send
       </Button>
-      {busy && (
-        <ol aria-live="polite" className="space-y-3 rounded-xl bg-background p-4">
-          {steps.slice(0, step + 1).map((label, index) => (
-            <li key={label} className="motion-safe:fade-in flex items-center gap-3">
-              {index < step ? <Check className="size-4 text-success" aria-hidden="true" /> : <LoaderCircle className="size-4 animate-spin text-primary" aria-hidden="true" />}
-              <span>{label}{index < step && <span className="sr-only"> Done</span>}</span>
-            </li>
-          ))}
-        </ol>
-      )}
     </form>
   );
 }
@@ -180,19 +190,21 @@ function SlotPicker({
   refreshTicket: () => void;
 }) {
   const [selection, setSelection] = useState<string>();
+  const [bookingError, setBookingError] = useState("");
   const selected = selection && ticket.proposed_slots.includes(selection) ? selection : undefined;
 
   async function confirm() {
     if (!selected || busy) return;
+    setBookingError("");
     setBusy(true);
     try {
       const booking = await bookSlot(ticket.id, selected, ["name", "phone", "address", "access_notes"]);
       void refreshAll();
       onBooked(booking.appointment_at
-        ? `Booked: ${formatDateTime(booking.appointment_at)} with ${company.name}`
+        ? `${formatDateTime(booking.appointment_at)} · ${company.name}`
         : `Booked with ${company.name}`);
     } catch (err) {
-      toast.error((err as Error).message);
+      setBookingError((err as Error).message);
       refreshTicket();
     } finally {
       setBusy(false);
@@ -201,7 +213,7 @@ function SlotPicker({
 
   return (
     <div className="space-y-4">
-      <div className="space-y-3 rounded-xl bg-background p-4">
+      <div className="space-y-2.5 rounded-2xl bg-background px-4 py-3">
         <div className="flex flex-wrap items-center gap-2">
           <h3 className="text-base font-semibold wrap-anywhere">{company.name}</h3>
           <PartnerPill isPartner={company.is_partner} />
@@ -212,13 +224,13 @@ function SlotPicker({
         <p>{ticket.triage?.summary || ticket.claim}</p>
         {ticket.est_cost_eur !== null && (
           <p className="text-muted-foreground">
-            Estimated cost <Money value={ticket.est_cost_eur} /> · paid by your landlord
+            Estimate <Money value={ticket.est_cost_eur} /> · paid by your landlord
           </p>
         )}
       </div>
       <section aria-labelledby="tenant-slot-heading" className="space-y-2">
         <h3 id="tenant-slot-heading" className="text-base font-semibold">Pick a time</h3>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-3 gap-2">
           {ticket.proposed_slots.map((slot) => {
             const { day, time } = formatSlot(slot);
             return (
@@ -227,9 +239,9 @@ function SlotPicker({
                 type="button"
                 variant={slot === selected ? "default" : "outline"}
                 aria-pressed={slot === selected}
-                onClick={() => setSelection(slot)}
+                onClick={() => { setSelection(slot); setBookingError(""); }}
                 disabled={busy}
-                className="h-auto min-h-15 flex-col gap-0.5 rounded-xl py-2"
+                className="h-auto min-h-15 flex-col gap-0.5 rounded-xl px-1 py-2"
               >
                 <span className="text-xs">{day}</span>
                 <span className="text-base font-semibold tabular-nums">{time}</span>
@@ -238,16 +250,17 @@ function SlotPicker({
           })}
         </div>
       </section>
+      {bookingError && <p role="alert" className="text-sm font-medium text-destructive">{bookingError}</p>}
       {selected && (
         <div className="motion-safe:fade-in space-y-3">
           <div className="flex items-start gap-3 rounded-xl bg-background p-4">
             <ShieldCheck className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden="true" />
             <div className="space-y-1">
               <p className="font-medium wrap-anywhere">Share your name, phone, address and access notes with {company.name}?</p>
-              <p className="text-muted-foreground">By confirming, you let the company contact you and access your home for this repair.</p>
+              <p className="text-muted-foreground">We’ll share these details for this repair when you confirm.</p>
             </div>
           </div>
-          <Button type="button" onClick={confirm} disabled={busy} className="min-h-11 w-full rounded-full">
+          <Button type="button" onClick={confirm} disabled={busy} className="min-h-12 w-full rounded-full text-base">
             {busy && <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />}
             {busy ? "Booking…" : "Confirm booking"}
           </Button>
@@ -267,8 +280,8 @@ function RepairResult({ ticket, company }: { ticket: Ticket; company?: CompanyVi
         {emergency && (
           <p className="font-semibold">If you smell gas: open the windows, don&apos;t use light switches, leave the flat and call 112 from outside.</p>
         )}
-        <p>A property manager is taking this over and will contact you shortly.</p>
-        {ticket.triage?.reason && <p className="text-muted-foreground">{ticket.triage.reason}</p>}
+        <p className="font-semibold">{ticket.owner_approval === "rejected" ? "Your landlord declined the estimate" : "Your property manager is reviewing this"}</p>
+        <p className="text-muted-foreground">We’ll post the next update in My requests.</p>
       </div>
     );
   }
@@ -277,15 +290,11 @@ function RepairResult({ ticket, company }: { ticket: Ticket; company?: CompanyVi
     return (
       <div role="status" className="space-y-2 rounded-xl bg-background p-4">
         <Clock3 className="size-5 text-primary" aria-hidden="true" />
-        {ticket.owner_approval === "rejected" ? (
-          <p>Your landlord declined the repair estimate. You can contact your property manager for an update.</p>
-        ) : (
-          <p>
-            Your landlord needs to approve this repair
-            {ticket.est_cost_eur !== null && <> (estimated <Money value={ticket.est_cost_eur} />)</>}.
-            We&apos;ll send you times as soon as it&apos;s approved.
-          </p>
-        )}
+        <p className="font-semibold">Waiting for landlord approval</p>
+        <p className="text-muted-foreground">
+          {ticket.est_cost_eur !== null && <>The estimate is <Money value={ticket.est_cost_eur} />. </>}
+          We’ll look for times once your landlord approves.
+        </p>
       </div>
     );
   }
@@ -298,13 +307,23 @@ function RepairResult({ ticket, company }: { ticket: Ticket; company?: CompanyVi
     );
   }
 
+  if (isCallingCompany(ticket)) {
+    return (
+      <div role="status" className="flex items-start gap-3 rounded-2xl bg-primary/8 p-4">
+        <PhoneCall className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden="true" />
+        <div className="space-y-1">
+          <p className="font-semibold">We’re calling {company?.name ?? "the company"} for times…</p>
+          <p className="text-muted-foreground">Times will appear here when the company replies. You can also come back from My requests.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <EmptyState
       icon={<Clock3 className="size-5" />}
-      title={ticket.status === "matched" ? "Waiting for appointment times" : "Request received"}
-      description={ticket.status === "matched" && company
-        ? `Check My requests for times from ${company.name}.`
-        : "You can follow this repair in My requests."}
+      title={ticket.status === "matched" ? "No appointment times available yet" : "Request received"}
+      description="You can follow this repair in My requests."
     />
   );
 }

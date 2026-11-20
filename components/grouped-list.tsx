@@ -15,7 +15,7 @@ export function GroupedList({
   return (
     <div>
       {title != null && <div className="section-label mb-2 px-4 font-medium">{title}</div>}
-      <div className="shadow-soft overflow-hidden rounded-[14px] bg-card text-card-foreground [&>*+*]:relative [&>*+*]:before:pointer-events-none [&>*+*]:before:absolute [&>*+*]:before:inset-s-4 [&>*+*]:before:inset-e-0 [&>*+*]:before:top-0 [&>*+*]:before:border-t">
+      <div className="shadow-soft overflow-hidden rounded-[14px] bg-card text-card-foreground [&>*+*]:relative [&>*+*]:before:pointer-events-none [&>*+*]:before:absolute [&>*+*]:before:inset-s-4 [&>*+*]:before:inset-e-0 [&>*+*]:before:top-0 [&>*+*]:before:border-t [&>*+*]:before:border-border">
         {children}
       </div>
       {footer != null && <div className="mt-2 px-4 text-sm text-muted-foreground">{footer}</div>}

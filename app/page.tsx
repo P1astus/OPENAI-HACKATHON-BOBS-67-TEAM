@@ -15,9 +15,9 @@ export default function HomePage() {
     <>
       <PageHeader
         title="centrix Fix"
-        subtitle="We find a repair company and book with the tenant. centrix pays for the finished repair from the owner's wallet."
+        subtitle={<p className="max-w-xl leading-relaxed">Report a repair, book a company and pay from the owner’s centrix wallet.</p>}
       />
-      <main className="fade-in mx-auto w-full max-w-5xl px-4 pt-2 pb-12 sm:px-6">
+      <main className="fade-in mx-auto w-full max-w-7xl px-4 pt-2 pb-12 sm:px-6">
         <nav aria-label="Demo views">
           <ul className="grid gap-4 sm:grid-cols-2">
             {views.map(({ name, description, href, icon: Icon }) => (

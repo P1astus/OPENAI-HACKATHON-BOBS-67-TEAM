@@ -71,7 +71,7 @@ export function TicketsPanel() {
       ) : (
         <>
           <div className="shadow-soft hidden overflow-hidden rounded-[14px] bg-card lg:block">
-            <Table aria-label="Repair tickets" className="table-fixed text-xs">
+            <Table aria-label="Repair tickets" className="table-fixed text-sm">
               <colgroup>
                 <col className="w-[12%]" />
                 <col className="w-[11%]" />
@@ -85,7 +85,7 @@ export function TicketsPanel() {
               <TableHeader className="bg-muted/35">
                 <TableRow className="hover:bg-transparent">
                   {columns.map((column) => (
-                    <TableHead key={column} scope="col" className="text-muted-foreground first:pl-4">{column}</TableHead>
+                    <TableHead key={column} scope="col" className="h-12 text-muted-foreground first:pl-5">{column}</TableHead>
                   ))}
                 </TableRow>
               </TableHeader>
@@ -96,7 +96,7 @@ export function TicketsPanel() {
                     className="cursor-pointer focus-within:bg-muted/40"
                     onClick={(event) => openTicket(ticket.id, event.currentTarget.querySelector("button"))}
                   >
-                    <TableCell className="pl-4 whitespace-normal text-muted-foreground">
+                    <TableCell className="py-3 pl-5 whitespace-normal text-muted-foreground">
                       <time dateTime={ticket.created_at}>{formatDateTime(ticket.created_at)}</time>
                     </TableCell>
                     <TableCell className="whitespace-normal wrap-anywhere">{units.get(ticket.unit_id) ?? ticket.unit_id}</TableCell>
@@ -134,7 +134,7 @@ export function TicketsPanel() {
                       <time dateTime={ticket.created_at}>{formatDateTime(ticket.created_at)}</time>
                       <span className="wrap-anywhere">{units.get(ticket.unit_id) ?? ticket.unit_id}</span>
                     </span>
-                    <span className="truncate font-medium">{ticket.claim}</span>
+                    <span className="line-clamp-2 font-medium">{ticket.claim}</span>
                     <span className="text-sm wrap-anywhere text-muted-foreground">
                       <span className="capitalize">{ticket.triage?.trade?.replaceAll("_", " ") ?? "–"}</span>
                       {" · "}{ticket.company_id ? names.get(ticket.company_id) ?? ticket.company_id : "–"}

@@ -50,7 +50,7 @@ function CompanyRow({ company, view }: { company: CompanyView; view: Exclude<Dir
               variant="secondary"
               className="min-h-11 px-4"
               aria-label={`Approach ${company.name}`}
-              onClick={() => toast.success(`We'll reach out to ${company.name} about joining centrix.`)}
+              onClick={() => toast.info(`Outreach preview for ${company.name}.`)}
             >
               Approach
             </Button>

@@ -26,7 +26,7 @@ export function PartnerDashboard() {
         subtitle={company?.is_partner ? "Partner of centrix" : "Company"}
         right={company && <div className="w-35 py-2 sm:w-52 [&_.bg-linear-to-r]:bg-muted [&_.bg-linear-to-r]:bg-none"><RatingMeter rating={company.rating} size="lg" /></div>}
       />
-      <main className="fade-in mx-auto w-full max-w-5xl px-4 pb-12 sm:px-6">
+      <main className="fade-in mx-auto w-full max-w-7xl px-4 pb-12 sm:px-6">
         {companies.error ? <ErrorBlock message={companies.error.message} onRetry={() => void companies.mutate()} />
           : !companies.data ? <LoadingBlock />
           : !company ? <EmptyState title="Company unavailable" description="No company matches this viewer." />

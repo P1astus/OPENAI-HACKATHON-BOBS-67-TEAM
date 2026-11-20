@@ -21,12 +21,12 @@ export function TenantSheet({
       <SheetContent
         side="bottom"
         showCloseButton={false}
-        className="mx-auto max-h-[88dvh] max-w-[430px] gap-0 overflow-y-auto overscroll-contain rounded-t-3xl"
+        className="mx-auto max-h-[calc(100dvh-1rem)] max-w-[460px] gap-0 overflow-hidden rounded-t-3xl sm:max-h-[88dvh]"
         onEscapeKeyDown={(event) => { if (busy) event.preventDefault(); }}
         onInteractOutside={(event) => { if (busy) event.preventDefault(); }}
         onCloseAutoFocus={(event) => { event.preventDefault(); restoreFocus(); }}
       >
-        <SheetHeader className="gap-1 px-5 pt-5 pb-3 pr-16">
+        <SheetHeader className="shrink-0 gap-1 border-b px-5 pt-5 pb-3 pr-16">
           <SheetTitle className="text-xl font-semibold tracking-tight">{title}</SheetTitle>
           <SheetDescription>{description}</SheetDescription>
         </SheetHeader>
@@ -35,7 +35,7 @@ export function TenantSheet({
             <X aria-hidden="true" />
           </Button>
         </SheetClose>
-        <div className="px-5 pt-1 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+        <div className="min-h-0 overflow-y-auto overscroll-contain px-5 pt-4 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
           {children}
         </div>
       </SheetContent>

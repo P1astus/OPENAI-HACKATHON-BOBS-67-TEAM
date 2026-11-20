@@ -27,6 +27,7 @@ function JobCard({ ticket, unit, property, tenant }: {
   const accepted = ticket.events.some(({ type }) => type === "accepted");
   const scheduled = ticket.status === "scheduled";
   const shared = ticket.consent?.data_shared ?? [];
+  const hasAddress = shared.includes("address");
   const address = property && `${property.address}, ${property.postcode} ${property.city}`;
 
   async function accept() {
@@ -58,8 +59,8 @@ function JobCard({ ticket, unit, property, tenant }: {
         <div className="flex items-start gap-2 text-sm text-muted-foreground">
           <MapPin aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
           <div className="min-w-0 wrap-anywhere">
-            <p className="font-medium text-foreground">{unit?.label ?? "Unit unavailable"}</p>
-            <p>{address ?? "Address unavailable"}</p>
+            <p className="font-medium text-foreground">{hasAddress ? unit?.label ?? "Unit unavailable" : property?.city ?? "Property location"}</p>
+            <p>{hasAddress ? address ?? "Address unavailable" : "Full address shared after consent"}</p>
           </div>
         </div>
         <p className="text-sm wrap-anywhere text-muted-foreground">
@@ -131,7 +132,7 @@ function InvoiceDialog({ ticket, accepting }: { ticket: Ticket; accepting: boole
       await completeTicket(ticket.id, value);
       setOpen(false);
       await refreshAll();
-      toast.success("Invoice sent to the owner");
+      toast.success("Repair completed and paid from the owner’s wallet");
     } catch (error) {
       toast.error((error as Error).message);
     } finally {
@@ -145,7 +146,7 @@ function InvoiceDialog({ ticket, accepting }: { ticket: Ticket; accepting: boole
       <DialogContent showCloseButton={false}>
         <DialogHeader>
           <DialogTitle>Mark repair done</DialogTitle>
-          <DialogDescription>Send the final repair amount to the owner.</DialogDescription>
+          <DialogDescription>Enter the final amount to pay from the owner’s centrix wallet.</DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-4">
           <div className="space-y-2">
@@ -207,7 +208,7 @@ export function DoneJobs({ companyId }: { companyId: string }) {
   return (
     <section aria-labelledby="done-heading" className="space-y-3">
       <h2 id="done-heading" className="section-label font-medium">Completed jobs</h2>
-      <p className="text-sm text-muted-foreground">Payment is handled by reltix within 30 days. centrix takes no commission.</p>
+      <p className="text-sm text-muted-foreground">Finished repairs are paid from the owner’s centrix wallet.</p>
       {error ? <ErrorBlock message={error.message} onRetry={() => void Promise.all([tickets.mutate(), invoices.mutate(), bootstrap.mutate()])} />
         : !jobs || !invoiceList || !lookups ? <LoadingBlock />
         : !jobs.length ? <EmptyState icon={<Wrench className="size-5" />} title="No completed jobs" description="Finished repairs and their invoices will appear here." />

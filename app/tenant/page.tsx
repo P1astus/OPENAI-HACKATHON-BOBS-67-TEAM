@@ -5,7 +5,7 @@ import { TenantView } from "./_components/tenant-view";
 export default function TenantPage() {
   return (
     <Suspense fallback={
-      <div className="mx-auto w-full max-w-[430px]">
+      <div className="mx-auto w-full max-w-xl">
         <PageHeader title="Your repairs" />
         <main className="px-4"><LoadingBlock /></main>
       </div>

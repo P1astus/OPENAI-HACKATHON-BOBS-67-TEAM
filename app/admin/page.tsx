@@ -11,7 +11,7 @@ export default function AdminPage() {
         subtitle="centrix Fix · all properties"
         right={<ResetDemoButton />}
       />
-      <main className="fade-in mx-auto w-full max-w-5xl px-4 pb-12 sm:px-6">
+      <main className="fade-in mx-auto w-full max-w-7xl px-4 pb-12 sm:px-6">
         <Suspense fallback={<LoadingBlock />}>
           <OperationsTabs />
         </Suspense>

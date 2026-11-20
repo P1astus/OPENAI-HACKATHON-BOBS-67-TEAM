@@ -2,7 +2,7 @@
 
 import { ReceiptText } from "lucide-react";
 import { useState } from "react";
-import { EmptyState, ErrorBlock, InvoicePill, LoadingBlock, Money, formatDate } from "@/components/index";
+import { EmptyState, ErrorBlock, GroupedList, InvoicePill, LoadingBlock, Money, formatDate } from "@/components/index";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { refreshAll, useBootstrap, useCompanies, useInvoices } from "@/lib/hooks";
 import type { Invoice } from "@/types";
@@ -12,6 +12,8 @@ const payers = [
   { value: "owner", label: "Owner wallet" },
   { value: "tenant", label: "Tenant" },
 ] as const;
+
+const payerLabel = { owner: "Owner wallet", tenant: "Tenant" };
 
 export function InvoicesPanel() {
   const [payer, setPayer] = useState<Invoice["payer"] | null>(null);
@@ -41,34 +43,56 @@ export function InvoicesPanel() {
       ) : shown.length === 0 ? (
         <EmptyState icon={<ReceiptText />} title={payer ? "No invoices match this filter" : "No invoices yet"} />
       ) : (
-        <div className="shadow-soft overflow-hidden rounded-[14px] bg-card">
-          <Table aria-label="Repair invoices">
-            <TableHeader className="bg-muted/45 [&_th]:px-3 [&_th:first-child]:pl-5">
-              <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Property address</TableHead>
-                <TableHead>Unit</TableHead>
-                <TableHead>Company</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead>Payer</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody className="[&_td]:px-3 [&_td]:py-3 [&_td:first-child]:pl-5">
-              {shown.map((invoice) => (
-                <TableRow key={invoice.id}>
-                  <TableCell><time dateTime={invoice.issued_at}>{formatDate(invoice.issued_at)}</time></TableCell>
-                  <TableCell className="font-medium">{addresses.get(invoice.property_id) ?? invoice.property_id}</TableCell>
-                  <TableCell>{units.get(invoice.unit_id) ?? invoice.unit_id}</TableCell>
-                  <TableCell>{names.get(invoice.company_id) ?? invoice.company_id}</TableCell>
-                  <TableCell className="font-medium tabular-nums"><Money value={invoice.amount_eur} /></TableCell>
-                  <TableCell>{invoice.payer === "owner" ? "Owner wallet" : "Tenant"}</TableCell>
-                  <TableCell><InvoicePill invoice={invoice} /></TableCell>
+        <>
+          <div className="shadow-soft hidden overflow-hidden rounded-[14px] bg-card lg:block">
+            <Table aria-label="Repair invoices">
+              <TableHeader className="bg-muted/45 [&_th]:px-3 [&_th:first-child]:pl-5">
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Property address</TableHead>
+                  <TableHead>Unit</TableHead>
+                  <TableHead>Company</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead>Payer</TableHead>
+                  <TableHead>Status</TableHead>
                 </TableRow>
+              </TableHeader>
+              <TableBody className="[&_td]:px-3 [&_td]:py-3 [&_td:first-child]:pl-5">
+                {shown.map((invoice) => (
+                  <TableRow key={invoice.id}>
+                    <TableCell><time dateTime={invoice.issued_at}>{formatDate(invoice.issued_at)}</time></TableCell>
+                    <TableCell className="font-medium">{addresses.get(invoice.property_id) ?? invoice.property_id}</TableCell>
+                    <TableCell>{units.get(invoice.unit_id) ?? invoice.unit_id}</TableCell>
+                    <TableCell>{names.get(invoice.company_id) ?? invoice.company_id}</TableCell>
+                    <TableCell className="font-medium tabular-nums"><Money value={invoice.amount_eur} /></TableCell>
+                    <TableCell>{payerLabel[invoice.payer]}</TableCell>
+                    <TableCell><InvoicePill invoice={invoice} /></TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          <div className="lg:hidden">
+            <GroupedList>
+              {shown.map((invoice) => (
+                <article key={invoice.id} className="space-y-2 p-4">
+                  <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                    <h3 className="font-semibold wrap-anywhere">{addresses.get(invoice.property_id) ?? invoice.property_id}</h3>
+                    <Money value={invoice.amount_eur} className="font-semibold tabular-nums" />
+                  </div>
+                  <p className="text-sm wrap-anywhere text-muted-foreground">
+                    {units.get(invoice.unit_id) ?? invoice.unit_id} · {names.get(invoice.company_id) ?? invoice.company_id}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+                    <time dateTime={invoice.issued_at}>{formatDate(invoice.issued_at)}</time>
+                    <span>{payerLabel[invoice.payer]}</span>
+                    <InvoicePill invoice={invoice} />
+                  </div>
+                </article>
               ))}
-            </TableBody>
-          </Table>
-        </div>
+            </GroupedList>
+          </div>
+        </>
       )}
     </div>
   );

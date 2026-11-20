@@ -8,7 +8,7 @@ export default function OwnerPage() {
     <Suspense fallback={
       <>
         <PageHeader title="Your properties" />
-        <main className="mx-auto w-full max-w-5xl px-4 pb-12 sm:px-6"><LoadingBlock /></main>
+        <main className="mx-auto w-full max-w-7xl px-4 pb-12 sm:px-6"><LoadingBlock /></main>
       </>
     }>
       <OwnerDashboard />

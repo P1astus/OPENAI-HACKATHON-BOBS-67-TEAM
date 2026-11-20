@@ -59,9 +59,9 @@ function Resident({ viewer }: { viewer: string }) {
   );
 
   return (
-    <div className="mx-auto w-full max-w-[430px]">
+    <div className="mx-auto w-full max-w-xl">
       <PageHeader title={firstName ? `Hi ${firstName}` : "Your repairs"} subtitle={subtitle || undefined} />
-      <main className="motion-safe:fade-in space-y-6 px-4 pb-10 sm:px-6">
+      <main className="motion-safe:fade-in space-y-5 px-4 pb-10 sm:px-6">
         {bootstrap.error ? (
           <ErrorBlock message={bootstrap.error.message} onRetry={() => void bootstrap.mutate()} />
         ) : bootstrap.isLoading ? (
@@ -79,32 +79,22 @@ function Resident({ viewer }: { viewer: string }) {
           <EmptyState title="No home linked" description="Your property manager can help link your account to your home." />
         )}
 
+        <Section title="My requests">
+          {ticketError || (!requests ? <LoadingBlock /> : requests.length === 0 ? (
+            <EmptyState icon={<ClipboardList className="size-5" />} title="No open requests" description="Repairs you report will appear here." />
+          ) : (
+            <GroupedList>
+              {requests.map((ticket) => <RequestRow key={ticket.id} ticket={ticket} company={companyFor(ticket.company_id)} onPickTime={(trigger) => openRepair(ticket, trigger)} />)}
+            </GroupedList>
+          ))}
+        </Section>
+
         <Section title="Upcoming">
           {ticketError || (!upcoming ? <LoadingBlock /> : upcoming.length === 0 ? (
             <EmptyState icon={<CalendarDays className="size-5" />} title="No upcoming appointments" description="Booked repairs will appear here." />
           ) : companyError || (companies.isLoading ? <LoadingBlock /> : (
             <GroupedList>
               {upcoming.map((ticket) => <Appointment key={ticket.id} ticket={ticket} company={companyFor(ticket.company_id)} />)}
-            </GroupedList>
-          )))}
-        </Section>
-
-        <Section title="My requests">
-          {ticketError || (!requests ? <LoadingBlock /> : requests.length === 0 ? (
-            <EmptyState icon={<ClipboardList className="size-5" />} title="No open requests" description="Repairs you report will appear here." />
-          ) : (
-            <GroupedList>
-              {requests.map((ticket) => <RequestRow key={ticket.id} ticket={ticket} onPickTime={(trigger) => openRepair(ticket, trigger)} />)}
-            </GroupedList>
-          ))}
-        </Section>
-
-        <Section title="Finished">
-          {ticketError || (!finished ? <LoadingBlock /> : finished.length === 0 ? (
-            <EmptyState icon={<History className="size-5" />} title="No finished repairs" />
-          ) : companyError || (companies.isLoading ? <LoadingBlock /> : (
-            <GroupedList>
-              {finished.map((ticket) => <FinishedRepair key={ticket.id} ticket={ticket} company={companyFor(ticket.company_id)} />)}
             </GroupedList>
           )))}
         </Section>
@@ -119,6 +109,16 @@ function Resident({ viewer }: { viewer: string }) {
               {tenantInvoices.map((invoice) => <InvoiceRow key={invoice.id} invoice={invoice} company={companyFor(invoice.company_id)} />)}
             </GroupedList>
           ))}
+        </Section>
+
+        <Section title="Finished">
+          {ticketError || (!finished ? <LoadingBlock /> : finished.length === 0 ? (
+            <EmptyState icon={<History className="size-5" />} title="No finished repairs" />
+          ) : companyError || (companies.isLoading ? <LoadingBlock /> : (
+            <GroupedList>
+              {finished.map((ticket) => <FinishedRepair key={ticket.id} ticket={ticket} company={companyFor(ticket.company_id)} />)}
+            </GroupedList>
+          )))}
         </Section>
 
         <Support />
@@ -159,7 +159,7 @@ function Support() {
   function send(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!message.trim()) return;
-    toast.success("Message sent. We'll get back to you today.");
+    toast.info("Support message previewed.");
     close();
   }
 
@@ -181,7 +181,7 @@ function Support() {
         onClose={close}
         restoreFocus={() => trigger.current?.focus()}
         title="Message the property manager"
-        description="How can we help?"
+        description="Preview a support message in this demo."
       >
         <form onSubmit={send} className="space-y-3">
           <Textarea
@@ -192,7 +192,7 @@ function Support() {
             className="min-h-24 rounded-xl bg-background p-3"
             required
           />
-          <Button type="submit" disabled={!message.trim()} className="min-h-11 w-full rounded-full">Send</Button>
+          <Button type="submit" disabled={!message.trim()} className="min-h-11 w-full rounded-full">Preview message</Button>
         </form>
       </TenantSheet>
     </Section>
