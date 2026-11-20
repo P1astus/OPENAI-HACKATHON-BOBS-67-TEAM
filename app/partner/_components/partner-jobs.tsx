@@ -88,7 +88,13 @@ function JobCard({ ticket, unit, property, tenant, pastAppointment }: {
         {scheduled
           ? <InvoiceDialog ticket={ticket} accepting={accepting} pastDue={pastAppointment !== null} />
           : <span className="text-sm text-muted-foreground">
-              {ticket.owner_approval === "rejected" ? "Estimate declined by the owner" : "Accept once the tenant books"}
+              {ticket.owner_approval === "rejected"
+                ? "Estimate declined by the owner"
+                : ticket.status === "awaiting_owner"
+                  ? <>Waiting for the owner to approve the {ticket.est_cost_eur !== null ? <Money value={ticket.est_cost_eur} /> : "cost"} estimate (repairs over €300 need the owner&apos;s OK). Then the tenant picks a time and you can accept.</>
+                  : ticket.proposed_slots.length > 0
+                    ? "Waiting for the tenant to pick one of your times. You can accept once they book."
+                    : "Accept once the tenant books"}
             </span>}
       </div>
     </article>
