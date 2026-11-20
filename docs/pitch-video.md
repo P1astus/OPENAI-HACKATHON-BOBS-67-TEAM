@@ -1,6 +1,6 @@
 # Pitch video: complete recording guide (2:30)
 
-**For:** Arman (recording + editing). **Deliverable:** one MP4, 1080p, **max 2:30**, uploaded in BuilderBase → Hand in → **Pitch Video**. **Ready by 09:30 Saturday** (hard deadline 10:30).
+**For:** Antoni (recording + editing). **Deliverable:** one MP4, 1080p, **max 2:30**, uploaded in BuilderBase → Hand in → **Pitch Video**. **Ready by 09:30 Saturday** (hard deadline 10:30).
 
 **What the video must prove** (this is how we're judged): the demo works end to end (30 %), it's easy for tenant, partner and owner (25 %), it's realistic about data, consent and privacy (20 %), any partner can plug in (15 %), and why this partner and this moment (10 %).
 
@@ -21,7 +21,7 @@
 - [ ] Tip: clicking a pane's **label** (e.g. "TENANT · LENA HOFFMANN") **enlarges** that pane; click the label again to go back to all four. Use this so viewers can read what you click.
 
 ### Phone (your phone plays the locksmith)
-- [ ] The app calls **your phone: +31 6 85172311**. It's already set up. The caller shows as **+1 270 289 7658** (US number). **Answer it.**
+- [ ] The app calls **your phone: +48 883 312 585**. It's already set up. The caller shows as **+1 270 289 7658** (US number). **Answer it.**
 - [ ] Phone **not on silent**, volume high, **charged**, next to the laptop.
 - [ ] When you answer: **speaker on**, phone lying next to the laptop microphone, so the screen recording also records the call audio. (An iPhone screen recording does NOT record call audio. The laptop mic must hear the speaker.)
 - [ ] Quiet room. No music.
@@ -124,6 +124,9 @@ Times are the target times **in the final edited video**. Recording takes longer
 
 ## Part 3: The phone call (you are the locksmith)
 
+**Extra shot (recommended):** when the phone rings, take an iPhone **screenshot of the incoming call screen** (side button + volume up) showing "+1 270 289 7658". In editing, show it for 2 s at the start of Scene 3: it proves the call is real.
+
+
 The agent speaks English. Wording varies a little each time; answer naturally. Keep it short.
 
 | The agent says (roughly) | You say |
@@ -158,7 +161,7 @@ The agent speaks English. Wording varies a little each time; answer naturally. K
 | Problem | Fix |
 |---|---|
 | A pane looks old or wrong | **Reset demo**, start the scene again. |
-| Phone doesn't ring within ~30 s | Check the phone isn't on silent/Do Not Disturb. Reset demo, report the locksmith problem again. Still nothing → message Antoni. |
+| Phone doesn't ring within ~30 s | Check the phone isn't on silent/Do Not Disturb. Reset demo, report the locksmith problem again. Still nothing → ask Claude to check the voice setup. |
 | AI takes > 15 s / shows an error toast | Wait, then retry the same text once. Cut the waiting in editing. |
 | The heating report goes to "a person" instead of WarmHaus | Retype exactly the text above; avoid extra words. |
 | The page says "Open on a wide screen" | Make the browser wider / full screen (needs ≥ 1200 px). |
@@ -174,5 +177,5 @@ The agent speaks English. Wording varies a little each time; answer naturally. K
 - [ ] Edited ≤ 2:30, captions + call subtitles
 - [ ] Watched once muted and once with sound
 - [ ] Exported MP4 1080p
-- [ ] Uploaded to BuilderBase → Hand in → Pitch Video (or sent to Antoni) **by 09:30**
+- [ ] Uploaded to BuilderBase → Hand in → Pitch Video **by 09:30**
 - [ ] Afterwards: press **Reset demo** so the live site is clean for the judges
