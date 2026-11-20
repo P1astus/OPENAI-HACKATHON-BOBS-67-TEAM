@@ -19,6 +19,7 @@ const tones = {
 
 const types: Partial<Record<string, readonly [string, keyof typeof tones]>> = {
   reported: ["Reported", "neutral"],
+  clarified: ["Problem clarified", "progress"],
   triaged: ["Triaged", "progress"],
   needs_human: ["Manager review", "attention"],
   emergency: ["Emergency", "emergency"],

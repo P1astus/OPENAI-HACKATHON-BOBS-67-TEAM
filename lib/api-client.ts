@@ -1,4 +1,7 @@
-import type { Company, CompanyRating, Invoice, Person, Property, Ticket, TicketStatus, Unit } from "../types";
+import type { Company, CompanyRating, Invoice, Person, Property, Ticket, TicketStatus, Trade, Unit } from "../types";
+import type { WebSearchResponse } from "./agent/search-web";
+
+export type { WebSearchResponse, WebSearchResult } from "./agent/search-web";
 
 export type InvoiceView = Invoice & { overdue: boolean };
 export type CompanyView = Company & { rating: CompanyRating };
@@ -29,7 +32,9 @@ type Mock = typeof import("./mock");
 async function request<T>(
   path: string,
   runMock: (mock: Mock) => Promise<T>,
-  { method = "GET", body, mockDelay = 300 }: { method?: "GET" | "POST"; body?: object; mockDelay?: number } = {},
+  { method = "GET", body, mockDelay = 300, timeoutMs = 15_000 }: {
+    method?: "GET" | "POST"; body?: object; mockDelay?: number; timeoutMs?: number;
+  } = {},
 ): Promise<T> {
   if (process.env.NEXT_PUBLIC_USE_MOCKS === "1") {
     const mock = await import("./mock");
@@ -38,7 +43,7 @@ async function request<T>(
   }
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 15_000);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     const response = await fetch(path, {
@@ -90,6 +95,18 @@ export async function createTicket(input: CreateTicketInput): Promise<Ticket> {
 export async function assignTicket(id: string, company_id: string): Promise<Ticket> {
   return request(`${ticketPath(id)}/assign`, (mock) => mock.assignTicket(id, company_id), {
     method: "POST", body: { company_id },
+  });
+}
+
+export async function clarifyTicket(id: string, note: string, actor: "owner" | "admin"): Promise<Ticket> {
+  return request(`${ticketPath(id)}/clarify`, (mock) => mock.clarifyTicket(id, note, actor), {
+    method: "POST", body: { note, actor }, mockDelay: 1500, timeoutMs: 30_000,
+  });
+}
+
+export async function searchCompaniesOnWeb(trade: Trade, postcode: string, city: string): Promise<WebSearchResponse> {
+  return request("/api/companies/search-web", (mock) => mock.searchCompaniesOnWeb(trade, postcode, city), {
+    method: "POST", body: { trade, postcode, city }, timeoutMs: 25_000,
   });
 }
 

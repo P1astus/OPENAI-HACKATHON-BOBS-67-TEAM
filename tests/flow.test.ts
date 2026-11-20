@@ -7,8 +7,8 @@ vi.mock("@/lib/agent/triage", async (orig) => {
   const real = await orig<typeof import("@/lib/agent/triage")>();
   return {
     ...real,
-    triageClaim: async (claim: string) => {
-      if (real.emergencyHit(claim) || !modelTriage.value) return real.triageClaim(claim);
+    triageClaim: async (...args: Parameters<typeof real.triageClaim>) => {
+      if (real.emergencyHit(args[0]) || !modelTriage.value) return real.triageClaim(...args);
       return { triage: real.decide(modelTriage.value), latency_ms: 1 };
     },
   };
@@ -22,11 +22,66 @@ const heating = { trade: "heating", urgency: "urgent", confidence: 0.93, summary
 const locksmith = { trade: "locksmith", urgency: "urgent", confidence: 0.95, summary: "Front door lock broken.", source: "model" } as const;
 
 beforeEach(async () => {
+  delete process.env.OPENAI_API_KEY;
   delete process.env.UPSTASH_REDIS_REST_URL;
   delete process.env.ELEVENLABS_AGENT_ID;
   delete process.env.N8N_WEBHOOK_URL;
   modelTriage.value = null;
   await store.reset();
+});
+
+describe("clarifying a repair", () => {
+  const note = "The heating radiator in the hallway is ice cold and makes no sound";
+
+  it("re-triages the seeded unclear ticket and matches a heating partner", async () => {
+    modelTriage.value = heating;
+    const ticket = await flow.clarifyTicket("t_unclear", ` ${note} `, "owner");
+    expect(ticket).toMatchObject({ status: "matched", company_id: "c_warmhaus", triage: { trade: "heating" } });
+    expect(ticket.proposed_slots).toHaveLength(3);
+    expect(ticket.events).toContainEqual(expect.objectContaining({ type: "clarified", actor: "owner", message: note }));
+    expect(ticket.events).toContainEqual(expect.objectContaining({ type: "triaged", message: expect.stringContaining(heating.summary) }));
+  });
+
+  it("rejects clarification in the wrong state", async () => {
+    await expect(flow.clarifyTicket("t_boiler", note, "admin")).rejects.toMatchObject({ status: 409 });
+  });
+
+  it("matches from the note when the model is unavailable", async () => {
+    const ticket = await flow.clarifyTicket("t_unclear", note, "admin");
+    expect(ticket).toMatchObject({
+      status: "matched", company_id: "c_warmhaus", triage: { trade: "heating", source: "rules", needs_human: false },
+    });
+  });
+
+  it("keeps a low-confidence ticket open with every active company eligible for manual assignment", async () => {
+    modelTriage.value = { ...heating, confidence: 0.5 };
+    const ticket = await flow.clarifyTicket("t_unclear", note, "owner");
+    const { companies } = await store.getState();
+    expect(ticket).toMatchObject({ status: "needs_human", triage: { trade: "heating", needs_human: true, reason: expect.any(String) } });
+    expect(ticket.candidates.map(({ company_id }) => company_id).sort()).toEqual(
+      companies.filter(({ status }) => status === "active").map(({ id }) => id).sort(),
+    );
+  });
+
+  it("uses the post-save voice path when clarification matches a non-partner", async () => {
+    modelTriage.value = locksmith;
+    const ticket = await flow.clarifyTicket("t_unclear", "The key broke in the front door lock.", "admin");
+    expect(ticket).toMatchObject({ status: "matched", partner_type: "non_partner" });
+    expect(ticket.events.map(({ type }) => type)).toContain("calling_company");
+    expect(ticket.proposed_slots.length).toBeGreaterThan(0);
+  });
+
+  it("honors emergency keywords and preserves manual assignment on later clarification", async () => {
+    modelTriage.value = heating;
+    const ticket = await flow.clarifyTicket("t_unclear", "There are sparks and the radiator is cold.", "owner");
+    expect(ticket).toMatchObject({ status: "emergency", company_id: null, triage: { urgency: "emergency", source: "rules" } });
+    const updated = await flow.clarifyTicket(ticket.id, note, "admin");
+    expect(updated).toMatchObject({
+      status: "emergency", company_id: null, proposed_slots: [],
+      triage: { trade: "heating", urgency: "emergency", needs_human: true },
+    });
+    expect(updated.candidates.map(({ company_id }) => company_id)).toContain("c_warmhaus");
+  });
 });
 
 describe("demo 1: heater → partner → book → done → wallet → forward → pay → rate", () => {

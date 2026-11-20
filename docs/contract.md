@@ -149,7 +149,8 @@ Completing a job appends `invoiced` and `paid_from_wallet`. Forwarding appends `
 | `GET /api/tickets?tenant_id=&owner_id=&company_id=&status=` | all screens | – | `Ticket[]` newest first |
 | `GET /api/tickets/:id` | all | – | `Ticket` |
 | `POST /api/tickets` | tenant | `{ tenant_id, unit_id, claim }` | `Ticket` after triage + match (≤ 12 s) |
-| `POST /api/tickets/:id/assign` | admin | `{ company_id }` | `Ticket` (from needs_human/emergency) |
+| `POST /api/tickets/:id/clarify` | owner, admin | `{ note, actor: "owner" \| "admin" }` (5–1000 characters after trimming) | `Ticket` after re-triage + matching |
+| `POST /api/tickets/:id/assign` | owner, admin | `{ company_id }` | `Ticket` (from needs_human/emergency) |
 | `POST /api/tickets/:id/approve` | owner | `{ approved: boolean }` | `Ticket` |
 | `POST /api/tickets/:id/book` | tenant | `{ slot, consent: { data_shared } }` | `Ticket` (scheduled) |
 | `POST /api/tickets/:id/accept` | company | – | `Ticket` (event only) |
@@ -159,15 +160,18 @@ Completing a job appends `invoiced` and `paid_from_wallet`. Forwarding appends `
 | `POST /api/invoices/:id/forward` | owner | – | `Invoice` (wallet-paid owner invoices only, wallet refunded, `payer: "tenant"`, `forwarded_at: now`, `status: "not_paid"`, `paid_at: null`) |
 | `POST /api/invoices/:id/pay` | tenant | – | `Invoice` (`status: "paid"`, `paid_at: now`). Only unpaid tenant invoices are eligible. Owner invoices return 409. |
 | `GET /api/companies` | admin, partner | – | `(Company & { rating: CompanyRating })[]` |
+| `POST /api/companies/search-web` | owner, admin | `{ trade: Trade, postcode: string, city: string }` | `{ results: [{ name, phone, website, address, source_url }], note? }` |
 | `POST /api/agent/voice-result` | ElevenLabs webhook | `{ ticket_id, company_id, slots: string[], summary }` + header `x-webhook-secret` | `{ ok: true }` |
 | `POST /api/reset` | demo operator | – | reseeds all data from `data/*.json` |
 
-## Behaviour notes (v1.2, implemented in `lib/flow.ts`)
+## Behaviour notes (v1.3)
 - `POST /api/tickets` returns 400 if the tenant doesn't live in the unit. Triage runs first (safety keywords → `emergency`, no model). Then `needs_human = trade === null || confidence < 0.7 || urgency === "emergency"` is decided in code. When the ticket goes to a human, `candidates` holds suggestions for the admin (every active company for the trade, radius ignored).
+- `clarify` accepts `needs_human` and `emergency` tickets, and returns 409 in other states. It appends `clarified` and `triaged` events, then runs normal matching for a clear non-emergency trade. When AI triage is unavailable, a single trade identified by keywords in the clarification can proceed. If the issue stays unclear, candidates include all active companies regardless of radius. Emergencies always require manual assignment.
+- `search-web` returns up to three sourced suggestions, with empty strings for missing contact details. Suggestions can be viewed and contacted manually. They are never stored or automatically called. Missing configuration, errors and the 20-second timeout return HTTP 200 with `{ results: [], note: "Web search unavailable" }`.
 - Partner slots are the next 3 free `calendar_slots` at least 2 h from now. For a non-partner, the API starts the ElevenLabs call and returns `proposed_slots: []`, and the slots arrive through `voice-result`. **Without ElevenLabs configured, the call is simulated** and the timeline says so. If the call fails, or the company offers no time, the ticket goes to `needs_human`.
 - `approve` with `approved: false` → `owner_approval: "rejected"`, status `needs_human` (the property manager decides).
 - `rate` appends `company_removed` or `potential_partner` events when that changes. The company's `status` flips to `blacklisted` automatically when its label is `bad`.
-- Event types: `reported`, `triaged`, `needs_human`, `emergency`, `no_partner`, `matched`, `owner_approval_requested`, `approved`, `rejected`, `calling_company`, `call_started`, `slots_proposed`, `booked`, `accepted`, `invoiced`, `paid_from_wallet`, `forwarded_to_tenant`, `invoice_paid`, `rated`, `company_removed`, `potential_partner`.
+- Event types: `reported`, `clarified`, `triaged`, `needs_human`, `emergency`, `no_partner`, `matched`, `owner_approval_requested`, `approved`, `rejected`, `calling_company`, `call_started`, `slots_proposed`, `booked`, `accepted`, `invoiced`, `paid_from_wallet`, `forwarded_to_tenant`, `invoice_paid`, `rated`, `company_removed`, `potential_partner`.
 - `voice-result` needs `x-webhook-secret` equal to `VOICE_WEBHOOK_SECRET` (401 otherwise, and always 401 when the secret isn't set). The ticket must be `matched` to that company with no slots yet (409 otherwise).
 - `POST /api/reset` returns `{ ok: true, source: "data" | "builtin" }`.
 

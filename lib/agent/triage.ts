@@ -121,7 +121,7 @@ export function decide(t: Omit<Triage, "needs_human" | "reason">, extra?: string
 
 export type TriageResult = { triage: Triage; latency_ms: number; error?: string };
 
-export async function triageClaim(claim: string, ctx: TriageContext = {}): Promise<TriageResult> {
+export async function triageClaim(claim: string, ctx: TriageContext = {}, clarification?: string): Promise<TriageResult> {
   const started = Date.now();
   const done = (triage: Triage, error?: string): TriageResult => {
     const latency_ms = Date.now() - started;
@@ -144,9 +144,17 @@ export async function triageClaim(claim: string, ctx: TriageContext = {}): Promi
       { trade: out.is_repair ? out.trade : null, urgency: out.urgency, confidence: out.confidence, summary: out.summary, source: "model" },
       out.is_repair ? undefined : "This doesn't look like a repair request.",
     ));
-  } catch (error) {
+  } catch {
+    // A human clarification can supply a trade the original report lacked.
+    const clarifiedTrades = clarification ? TRADE_KEYWORDS.filter(([, re]) => re.test(clarification)) : [];
+    if (clarifiedTrades.length === 1) {
+      const [trade] = clarifiedTrades[0];
+      return done(decide({
+        trade, urgency: "normal", confidence: CONFIDENCE_THRESHOLD, source: "rules",
+        summary: `Clarification identifies a ${trade.replaceAll("_", " ")} problem (keyword match).`,
+      }), "AI triage unavailable");
+    }
     const trade = keywordTrade(claim);
-    const message = error instanceof Error ? error.name + ": " + error.message.slice(0, 120) : "unknown";
     const triage = decide({
       trade, urgency: "normal", confidence: 0.4, source: "rules",
       summary: trade ? `Reported ${trade.replaceAll("_", " ")} problem (automatic keyword guess).` : "Repair details are unclear.",
@@ -154,6 +162,6 @@ export async function triageClaim(claim: string, ctx: TriageContext = {}): Promi
     // Rules fallback always goes to a human, and says why.
     triage.needs_human = true;
     triage.reason = `AI triage unavailable, keyword guess only. ${triage.reason}`.trim();
-    return done(triage, message);
+    return done(triage, "AI triage unavailable");
   }
 }

@@ -6,6 +6,7 @@ import {
   type InvoiceFilter,
   type InvoiceView,
   type TicketFilter,
+  type WebSearchResponse,
 } from "./api-client";
 import type { Company, CompanyRating, Invoice, MatchCandidate, Property, Ticket, TicketEvent, Trade, Triage } from "../types";
 
@@ -425,24 +426,56 @@ export async function createTicket(input: CreateTicketInput): Promise<Ticket> {
   const property = byId(state.properties, unit.property_id, "Property");
   const ticket = reportedTicket(`t_demo_${nextTicket++}`, input);
   ticket.triage = triageClaim(input.claim);
-  addEvent(ticket, "agent", "triaged", ticket.triage.summary);
-  const { trade, needs_human, urgency } = ticket.triage;
-  if (!needs_human && urgency !== "emergency" && trade) {
-    ticket.candidates = matchingCompanies(property, trade);
-  }
+  routeAfterTriage(ticket, ticket.triage, property);
+  state.tickets.unshift(ticket);
+  return structuredClone(ticket);
+}
 
+function routeAfterTriage(ticket: Ticket, triage: Triage, property: Property, clarified = false) {
+  addEvent(ticket, "agent", "triaged", triage.summary);
+  const { trade, needs_human, urgency } = triage;
+  ticket.candidates = !needs_human && urgency !== "emergency" && trade ? matchingCompanies(property, trade) : [];
   const top = ticket.candidates[0];
   if (top) {
     matchTicket(ticket, findCompany(top.company_id), top.est_cost_eur, "agent");
   } else {
     ticket.status = urgency === "emergency" ? "emergency" : "needs_human";
-    ticket.candidates = rankCompanies(companyOptions(property, trade));
-    ticket.triage.needs_human = true;
-    ticket.triage.reason ||= "No active company covers this trade and location.";
-    addEvent(ticket, "agent", ticket.status, ticket.triage.reason);
+    ticket.candidates = rankCompanies(companyOptions(property, clarified && needs_human && urgency !== "emergency" ? null : trade));
+    triage.needs_human = true;
+    triage.reason ||= "No active company covers this trade and location.";
+    addEvent(ticket, "agent", ticket.status, triage.reason);
   }
-  state.tickets.unshift(ticket);
+}
+
+export async function clarifyTicket(id: string, note: string, actor: "owner" | "admin"): Promise<Ticket> {
+  const ticket = findTicket(id);
+  requireState(ticket.status === "needs_human" || ticket.status === "emergency", "This ticket isn't waiting for clarification");
+  const text = note.trim();
+  if (text.length < 5 || text.length > 1000) throw new ApiError("Enter a note of 5 to 1000 characters", 400);
+  const triage = triageClaim(`${ticket.claim}\nClarification from the ${actor}: ${text}`);
+  if (ticket.status === "emergency" && triage.urgency !== "emergency") {
+    triage.urgency = "emergency";
+    triage.needs_human = true;
+    triage.reason = "A person must assign a company to this emergency.";
+  }
+  const unit = findUnit(ticket.unit_id);
+  const property = byId(state.properties, unit.property_id, "Property");
+  ticket.triage = triage;
+  addEvent(ticket, actor, "clarified", text);
+  routeAfterTriage(ticket, triage, property, true);
   return structuredClone(ticket);
+}
+
+export async function searchCompaniesOnWeb(trade: Trade, postcode: string, city: string): Promise<WebSearchResponse> {
+  return {
+    results: ["Repair Service", "Mobile Repairs"].map((name, index) => ({
+      name: `Example · ${trade.replaceAll("_", " ")} ${name}`,
+      address: `Example address · ${postcode} ${city}`,
+      phone: "",
+      website: "https://example.com/",
+      source_url: `https://example.com/repair-example-${index + 1}`,
+    })),
+  };
 }
 
 export async function assignTicket(id: string, company_id: string): Promise<Ticket> {

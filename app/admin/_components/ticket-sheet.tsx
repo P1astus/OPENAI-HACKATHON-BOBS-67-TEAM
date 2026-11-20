@@ -1,8 +1,8 @@
 "use client";
 
-import { Code2, History, LoaderCircle, X } from "lucide-react";
+import { Code2, History, X } from "lucide-react";
 import { useId, useState, type ReactNode } from "react";
-import { toast } from "sonner";
+import { ClarifyRepair, tradeLabels } from "@/components/clarify";
 import { TenantContactCard } from "@/components/contact-card";
 import {
   EmptyState, ErrorBlock, formatDateTime, LoadingBlock, Money, PartnerPill, StatusPill, Timeline,
@@ -10,9 +10,9 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { assignTicket, type Bootstrap, type CompanyView } from "@/lib/api-client";
+import type { Bootstrap, CompanyView } from "@/lib/api-client";
 import { refreshAll, useBootstrap, useCompanies, useTicket } from "@/lib/hooks";
-import type { MatchCandidate, Ticket } from "@/types";
+import type { MatchCandidate, Property, Ticket } from "@/types";
 
 const percent = new Intl.NumberFormat("en", { style: "percent" });
 const weights = [
@@ -30,36 +30,29 @@ function DetailSection({ title, id, children }: { title: string; id?: string; ch
   );
 }
 
-function TicketDetails({ ticket, bootstrap, companies, unitLabel }: {
+function TicketDetails({ ticket, bootstrap, companies, unitLabel, property }: {
   ticket: Ticket;
   bootstrap: Bootstrap;
   companies: CompanyView[];
   unitLabel: string;
+  property?: Property;
 }) {
-  const [pendingCompany, setPendingCompany] = useState<string | null>(null);
   const [showRaw, setShowRaw] = useState(false);
   const rawId = useId();
   const timelineId = useId();
   const { triage, consent } = ticket;
   const tenant = bootstrap.people.find((person) => person.id === ticket.tenant_id);
-  const canAssign = ticket.status === "needs_human" || ticket.status === "emergency";
+  const awaitingManualHelp = ticket.status === "needs_human" || ticket.status === "emergency";
   const companyById = new Map(companies.map((company) => [company.id, company]));
-
-  async function assign(companyId: string) {
-    setPendingCompany(companyId);
-    try {
-      await assignTicket(ticket.id, companyId);
-      await refreshAll();
-      toast.success("Company assigned.");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Couldn’t assign the company.");
-    } finally {
-      setPendingCompany(null);
-    }
-  }
 
   return (
     <div className="min-w-0 space-y-6">
+      {tenant && (
+        <TenantContactCard tenant={tenant} status={ticket.status} claim={ticket.claim}
+          unitLabel={unitLabel} senderName="reltix property management" />
+      )}
+      <ClarifyRepair ticket={ticket} actor="admin" companies={companies} property={property}
+        tenantName={tenant?.name.trim().split(/\s+/)[0] || "The tenant"} />
       <DetailSection title="Claim">
         <div className="shadow-soft space-y-3 rounded-[14px] bg-card p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -79,7 +72,7 @@ function TicketDetails({ ticket, bootstrap, companies, unitLabel }: {
           <div className="shadow-soft space-y-3 rounded-[14px] bg-card p-4">
             <Badge variant="secondary" className="rounded-full">{triage.source === "model" ? "AI model" : "Rules fallback"}</Badge>
             <dl className="grid grid-cols-3 gap-2">
-              <div><dt className="text-xs text-muted-foreground">Trade</dt><dd className="mt-1 font-medium capitalize">{triage.trade?.replaceAll("_", " ") ?? "–"}</dd></div>
+              <div><dt className="text-xs text-muted-foreground">Trade</dt><dd className="mt-1 font-medium capitalize">{triage.trade ? tradeLabels[triage.trade] : "–"}</dd></div>
               <div><dt className="text-xs text-muted-foreground">Urgency</dt><dd className="mt-1 font-medium capitalize">{triage.urgency}</dd></div>
               <div><dt className="text-xs text-muted-foreground">Confidence</dt><dd className="mt-1 font-medium tabular-nums">{percent.format(triage.confidence)}</dd></div>
             </dl>
@@ -90,74 +83,56 @@ function TicketDetails({ ticket, bootstrap, companies, unitLabel }: {
           </div>
         ) : <EmptyState title="No triage yet" />}
       </DetailSection>
-      {tenant && (
-        <TenantContactCard tenant={tenant} status={ticket.status} claim={ticket.claim}
-          unitLabel={unitLabel} senderName="reltix property management" />
-      )}
-      <DetailSection title="Why this company">
-        {ticket.candidates.length === 0 ? (
-          <EmptyState title="No ranked candidates" />
-        ) : (
-          <ol className="space-y-2">
-            {ticket.candidates.map((candidate) => {
-              const company = companyById.get(candidate.company_id);
-              const chosen = candidate.company_id === ticket.company_id;
-              const assigning = pendingCompany === candidate.company_id;
-              return (
-                <li
-                  key={candidate.company_id}
-                  className={`shadow-soft rounded-[14px] border bg-card p-4 ${chosen ? "border-primary/40" : "border-transparent"}`}
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="font-semibold wrap-anywhere">{company?.name ?? candidate.company_id}</span>
-                    <div className="flex flex-wrap items-center gap-2">
-                      {company && <PartnerPill isPartner={company.is_partner} />}
-                      {chosen && <span className="text-xs font-semibold text-primary">Chosen</span>}
-                    </div>
-                  </div>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    Match <strong className="font-semibold text-foreground">{candidate.match.toFixed(2)}</strong>
-                    {" · "}{candidate.distance_km.toFixed(1)} km
-                    {" · "}<Money value={candidate.est_cost_eur} /> estimated
-                  </p>
-                  <div className="mt-4 grid grid-cols-3 gap-3">
-                    {weights.map(([part, label]) => (
-                      <div key={part} className="space-y-1.5">
-                        <p className="text-xs leading-tight text-muted-foreground">{label}</p>
-                        <div
-                          role="meter"
-                          aria-label={label}
-                          aria-valuemin={0}
-                          aria-valuemax={1}
-                          aria-valuenow={candidate.parts[part]}
-                          className="h-1.5 overflow-hidden rounded-full bg-muted"
-                        >
-                          <div className="h-full origin-left rounded-full bg-primary" style={{ transform: `scaleX(${candidate.parts[part]})` }} />
-                        </div>
+      {!awaitingManualHelp && (
+        <DetailSection title="Why this company">
+          {ticket.candidates.length === 0 ? (
+            <EmptyState title="No ranked candidates" />
+          ) : (
+            <ol className="space-y-2">
+              {ticket.candidates.map((candidate) => {
+                const company = companyById.get(candidate.company_id);
+                const chosen = candidate.company_id === ticket.company_id;
+                return (
+                  <li
+                    key={candidate.company_id}
+                    className={`shadow-soft rounded-[14px] border bg-card p-4 ${chosen ? "border-primary/40" : "border-transparent"}`}
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="font-semibold wrap-anywhere">{company?.name ?? candidate.company_id}</span>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {company && <PartnerPill isPartner={company.is_partner} />}
+                        {chosen && <span className="text-xs font-semibold text-primary">Chosen</span>}
                       </div>
-                    ))}
-                  </div>
-                  {canAssign && (
-                    <div className="mt-3 flex justify-end">
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        className="min-h-11 px-4"
-                        aria-label={`${assigning ? "Assigning" : "Assign"} ${company?.name ?? candidate.company_id}`}
-                        disabled={pendingCompany !== null || company?.status !== "active"}
-                        onClick={() => assign(candidate.company_id)}
-                      >
-                        {assigning && <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />}
-                        {assigning ? "Assigning…" : company?.status === "active" ? "Assign" : "Unavailable"}
-                      </Button>
                     </div>
-                  )}
-                </li>
-              );
-            })}
-          </ol>
-        )}
-      </DetailSection>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      Match <strong className="font-semibold text-foreground">{candidate.match.toFixed(2)}</strong>
+                      {" · "}{candidate.distance_km.toFixed(1)} km
+                      {" · "}<Money value={candidate.est_cost_eur} /> estimated
+                    </p>
+                    <div className="mt-4 grid grid-cols-3 gap-3">
+                      {weights.map(([part, label]) => (
+                        <div key={part} className="space-y-1.5">
+                          <p className="text-xs leading-tight text-muted-foreground">{label}</p>
+                          <div
+                            role="meter"
+                            aria-label={label}
+                            aria-valuemin={0}
+                            aria-valuemax={1}
+                            aria-valuenow={candidate.parts[part]}
+                            className="h-1.5 overflow-hidden rounded-full bg-muted"
+                          >
+                            <div className="h-full origin-left rounded-full bg-primary" style={{ transform: `scaleX(${candidate.parts[part]})` }} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
+          )}
+        </DetailSection>
+      )}
       <DetailSection title="Consent">
         {consent ? (
           <dl className="shadow-soft grid gap-3 rounded-[14px] bg-card p-4 sm:grid-cols-2">
@@ -235,7 +210,7 @@ export function TicketSheet({ id, onClose, restoreFocus }: { id: string | null; 
             <LoadingBlock />
           ) : (
             <TicketDetails key={ticket.data.id} ticket={ticket.data} companies={companies.data}
-              bootstrap={bootstrap.data} unitLabel={unit?.label ?? "your unit"} />
+              bootstrap={bootstrap.data} unitLabel={unit?.label ?? "your unit"} property={property} />
           )}
         </div>
       </SheetContent>

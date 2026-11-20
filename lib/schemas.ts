@@ -22,6 +22,17 @@ export const createTicketBody = z.object({
 });
 
 export const assignBody = z.object({ company_id: id("c_") });
+export const clarifyBody = z.object({
+  note: z.string().trim().min(5, "Describe what you found in at least 5 characters").max(1000, "Keep the note to 1000 characters"),
+  actor: z.enum(["owner", "admin"]),
+});
+
+export const searchWebBody = z.object({
+  trade: tradeSchema,
+  postcode: z.string().trim().min(1).max(20),
+  city: z.string().trim().min(1).max(100),
+});
+
 export const approveBody = z.object({ approved: z.boolean() });
 
 export const CONSENT_FIELDS = ["name", "phone", "email", "address", "access_notes"] as const;

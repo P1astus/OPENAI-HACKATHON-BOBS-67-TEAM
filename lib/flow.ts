@@ -166,25 +166,57 @@ export async function createTicket(input: { tenant_id: string; unit_id: string; 
     event(t, "tenant", "reported", "Repair request submitted.", created_at);
     event(t, "agent", "triaged", triageMessage(triage));
 
-    if (triage.needs_human) {
-      t.candidates = suggestionsFor(s, t, triage.trade);
-      t.status = triage.urgency === "emergency" ? "emergency" : "needs_human";
-      event(t, "agent", t.status, triage.reason);
-      return null;
-    }
-
-    const { candidates, pool } = matchCompanies(property, s.companies, triage.trade!);
-    t.candidates = candidates;
-    if (pool === "none") {
-      t.candidates = suggestionsFor(s, t, triage.trade);
-      sendToHuman(t, "needs_human", `No active ${triage.trade!.replaceAll("_", " ")} company covers this address.`);
-      return null;
-    }
-    if (pool === "non_partner") event(t, "agent", "no_partner", "No partner covers this job: searched local non-partner companies.");
-    const top = candidates[0];
-    return assignCompany(s, t, findCompany(s, top.company_id), top.est_cost_eur, "agent");
+    return routeAfterTriage(s, t, triage);
   });
 
+  await runPendingCall(call);
+  return findTicket(await getState(), id);
+}
+
+function routeAfterTriage(s: State, t: Ticket, triage: Triage, clarified = false): PendingCall {
+  const { trade } = triage;
+  if (triage.needs_human || trade === null) {
+    t.status = triage.urgency === "emergency" ? "emergency" : "needs_human";
+    t.candidates = suggestionsFor(s, t, clarified && t.status === "needs_human" ? null : trade);
+    event(t, "agent", t.status, triage.reason);
+    return null;
+  }
+
+  const { candidates, pool } = matchCompanies(propertyOf(s, t), s.companies, trade);
+  t.candidates = candidates;
+  if (pool === "none") {
+    t.candidates = suggestionsFor(s, t, trade);
+    sendToHuman(t, "needs_human", `No active ${trade.replaceAll("_", " ")} company covers this address.`);
+    return null;
+  }
+  if (pool === "non_partner") event(t, "agent", "no_partner", "No partner covers this job: searched local non-partner companies.");
+  const top = candidates[0];
+  return assignCompany(s, t, findCompany(s, top.company_id), top.est_cost_eur, "agent");
+}
+
+export async function clarifyTicket(id: string, note: string, actor: "owner" | "admin"): Promise<Ticket> {
+  const before = await getState();
+  const previous = findTicket(before, id);
+  requireState(previous.status === "needs_human" || previous.status === "emergency", "This ticket isn't waiting for clarification");
+  const clarification = note.trim();
+  const { triage } = await triageClaim(`${previous.claim}\nClarification from the ${actor}: ${clarification}`, {
+    unit: findUnit(before, previous.unit_id), property: propertyOf(before, previous),
+  }, clarification);
+
+  const { result: call } = await mutate((s) => {
+    const t = findTicket(s, id);
+    requireState(t.status === previous.status && t.events.length === previous.events.length,
+      "This ticket changed while it was being clarified. Try again.");
+    if (t.status === "emergency" && triage.urgency !== "emergency") {
+      triage.urgency = "emergency";
+      triage.needs_human = true;
+      triage.reason = "A person must assign a company to this emergency.";
+    }
+    t.triage = triage;
+    event(t, actor, "clarified", clarification);
+    event(t, "agent", "triaged", triageMessage(triage));
+    return routeAfterTriage(s, t, triage, true);
+  });
   await runPendingCall(call);
   return findTicket(await getState(), id);
 }
