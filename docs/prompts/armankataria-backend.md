@@ -8,14 +8,14 @@ You are the backend lead on a 24-hour hackathon team. Deadline: **Sat Nov 21, 10
 
 ## Your scope
 You own: `types.ts`, `lib/` (except `lib/api-client.ts` and `lib/mock.ts`, which are Antoni's), `app/api/`, `.env.example`, `docs/contract.md`.
-You do NOT edit screens (`app/tenant|owner|partner|admin`, `components/`) or the seed data (`data/*.json`, which is Teammate 4's). Need different seed data? Ask Teammate 4.
+You do NOT edit screens (`app/tenant|owner|partner|admin`, `components/`) or the seed data (`data/*.json`, which is valoi2's). Need different seed data? Ask valoi2.
 
 Branch: `feat/core`. Small PRs, in this order, so others are unblocked early.
 
 ## PR 1: contract and stubs (target: 45 min after scaffold)
 1. Check that `types.ts` matches `docs/contract.md` exactly. Add `lib/schemas.ts` with `zod` schemas for every request body in the contract, plus the seed file shapes.
-2. Every route in the contract exists and returns realistic fixed data in the right shape. Antoni and Teammate 4 can start against it immediately.
-3. Add `scripts/validate-data.ts` and `npm run check:data`: it loads every `data/*.json`, validates it with zod and checks references (every `unit.property_id` exists, and so on). Print clear errors. Teammate 4 runs it.
+2. Every route in the contract exists and returns realistic fixed data in the right shape. Antoni and valoi2 can start against it immediately.
+3. Add `scripts/validate-data.ts` and `npm run check:data`: it loads every `data/*.json`, validates it with zod and checks references (every `unit.property_id` exists, and so on). Print clear errors. valoi2 runs it.
 4. Post in the chat: "contract v1 live". Any later change goes in the same PR as the matching `docs/contract.md` update, announced in the chat.
 
 ## PR 2: store (`lib/store.ts`)
@@ -55,8 +55,8 @@ Input: the tenant's `claim`, plus unit and property context. Output: the `Triage
 - `rate`: store the rating and add a `Review` to the company → recompute `companyRating` → `applyBlacklist`. Return the new rating so the screen can show it change live.
 - `GET /api/companies/:id/balance`: computed from invoices (6 months: earned / paid / outstanding / jobs).
 
-## PR 6: voice hook (with Teammate 3)
-- `lib/agent/voice.ts`: `startCompanyCall(ticket, company)`. If `ELEVENLABS_AGENT_ID` is set, start an outbound call through the ElevenLabs API (Teammate 3 will give you the exact endpoint and dynamic variable names from their `docs/voice-agent.md`). Pass only the problem summary, street + postcode, preferred days and a callback ticket id. **No tenant name or phone before consent.** Use a 10 s timeout. On failure, set `needs_human` with reason "Couldn't reach the company".
+## PR 6: voice hook (with Tropimatico)
+- `lib/agent/voice.ts`: `startCompanyCall(ticket, company)`. If `ELEVENLABS_AGENT_ID` is set, start an outbound call through the ElevenLabs API (Tropimatico will give you the exact endpoint and dynamic variable names from their `docs/voice-agent.md`). Pass only the problem summary, street + postcode, preferred days and a callback ticket id. **No tenant name or phone before consent.** Use a 10 s timeout. On failure, set `needs_human` with reason "Couldn't reach the company".
 - `POST /api/agent/voice-result`: check the `x-webhook-secret` header against `VOICE_WEBHOOK_SECRET` (401 otherwise), validate the body, set `proposed_slots`, append the event "WarmHaus offered 3 times by phone".
 - Demo fallback: `POST /api/agent/voice-result` can be called by hand from the admin sheet, so the flow still finishes if the call fails on stage.
 
@@ -70,5 +70,5 @@ Input: the tenant's `claim`, plus unit and property context. Output: the `Triage
 - +45 min after scaffold: PR 1 merged (contract + stubs).
 - +2 h: store + rules with tests.
 - ~19:00: the real flow behind every route; Antoni switches off mocks; the heater story runs end to end.
-- Fri night: triage eval passing, voice hook connected with Teammate 3.
+- Fri night: triage eval passing, voice hook connected with Tropimatico.
 - Sat 07:30: freeze.

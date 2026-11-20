@@ -21,7 +21,7 @@ Largest student-led AI hackathon in the Netherlands.
 | Sat 15:00+ | **Grand Finale** live stage pitches (projector at Sint Janskerk) |
 
 ## 2. Team
-Antoni Potrykowski, Marlene Heydenreich, Timo Aavila, Diana Piskareva. Four equal members, no team lead. Decisions are made together; roles are agreed at kickoff (section 4) and can change.
+Antoni Potrykowski, Marlene Heydenreich, Timo Aavila, Diana Piskareva. GitHub: P1astus (Antoni, repo owner), armaNKataria, Tropimatico, valoi2; who does what is in [docs/task-split.md](docs/task-split.md). Four equal members, no team lead. Decisions are made together; roles are agreed at kickoff (section 4) and can change.
 
 ## 3. Sponsors & what the jury rewards
 Credits: **OpenAI** (models, tool calling, structured outputs), **ElevenLabs** (voice), **n8n Cloud Pro** (real actions via webhooks). Using all three is optional; use each only where it makes the product better.
@@ -100,7 +100,7 @@ reltix judging (this decides the track prize):
 - Numbers shown to users (money, hours, scores) come from deterministic code, not model text.
 - Every external call needs a timeout and a fallback so one failing service cannot crash the demo.
 - Keep it simple. Our company list, apartments and reviews live in seed JSON files (or one small store if serverless state gets lost). No real database server and no login.
-- Before every merge, the project's checks must pass (type check, lint, build and any tests we set up). Write the exact commands here once the stack is chosen.
+- Before every merge these must pass: `npm run typecheck && npm run lint && npm run build`.
 - If we use a framework that changed recently (for example Next.js), check its bundled or official docs before using unfamiliar APIs.
 
 ## 7. Current code

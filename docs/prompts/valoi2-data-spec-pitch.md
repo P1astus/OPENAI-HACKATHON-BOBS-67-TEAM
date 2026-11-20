@@ -1,4 +1,4 @@
-# Prompt: Teammate 4 — demo data, connector spec and pitch
+# Prompt: valoi2 — demo data, connector spec and pitch
 
 Paste everything below the line into Claude (chat or Claude Code at the repo root).
 
@@ -50,7 +50,7 @@ Audience: a developer at a new partner company and the reltix judges. Goal: **an
 Live stage pitch, about 3 minutes plus questions. Structure:
 1. **One sentence first:** "We turn 'my heating is broken' into a booked, paid and rated repair, with zero forms for the tenant, by matching every problem to the best local company."
 2. **Problem** (20 s): the brief's own line, "a broken heater can take a dozen calls and emails". No invented statistics: any number on a slide must come from our app (counts and euros from the admin screen) or from a source we can name. Mark unknowns as `[CHECK]`.
-3. **Live demo** (90 s): write the click-by-click script with who does what. Antoni drives; armaNKataria and Teammate 3 are on standby for the call. Heater: tenant reports → match with visible formula → tenant picks a time → partner accepts and marks done → owner forwards or pays → tenant rates 9 → score updates. Then the short second case: the non-partner gets its 5th good review and appears under "Potential partners".
+3. **Live demo** (90 s): write the click-by-click script with who does what. Antoni drives; armaNKataria and Tropimatico are on standby for the call. Heater: tenant reports → match with visible formula → tenant picks a time → partner accepts and marks done → owner forwards or pays → tenant rates 9 → score updates. Then the short second case: the non-partner gets its 5th good review and appears under "Potential partners".
 4. **Why this partner and this moment** (10% of the score): the landlord must fix it, it's urgent, and today it costs the property manager the most calls.
 5. **Connector spec** in one slide: manifest → availability → job → status → invoice → result on the unit.
 6. **Business model:** home owners pay a subscription, and that's all. No commission from companies, which is why good local companies happily join as partners. Price shown as `[OWNER SUBSCRIPTION PRICE]` until the team agrees on it.

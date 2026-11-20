@@ -1,4 +1,4 @@
-# Prompt: Teammate 3 — voice agent and messages
+# Prompt: Tropimatico — voice agent and messages
 
 Paste everything below the line into Claude (chat or Claude Code). Most of this job happens in the ElevenLabs dashboard, so ask Claude to walk you through it step by step.
 

@@ -8,7 +8,7 @@ You are the frontend lead on a 24-hour hackathon team. Deadline: **Sat Nov 21, 1
 
 ## Your scope
 You own: project setup, Vercel deploy, `components/`, `app/tenant/`, `app/owner/`, `app/partner/`, `app/admin/`, `app/page.tsx`, `app/globals.css`.
-You do NOT edit: `types.ts`, `lib/` (except `lib/api-client.ts` and `lib/mock.ts`, which are yours), `app/api/`, `data/`. Those belong to armaNKataria and Teammate 4. If you need a field that isn't in `docs/contract.md`, stop and ask armaNKataria.
+You do NOT edit: `types.ts`, `lib/` (except `lib/api-client.ts` and `lib/mock.ts`, which are yours), `app/api/`, `data/`. Those belong to armaNKataria and valoi2. If you need a field that isn't in `docs/contract.md`, stop and ask armaNKataria.
 
 ## Phase 1: setup commit (target: 30 min, push straight to `main`, everyone is waiting on it)
 1. Scaffold in the repo root (keep the existing docs): latest stable Next.js, App Router, TypeScript strict, Tailwind, ESLint, `src/` off, import alias `@/*`. Check the Next.js docs bundled in `node_modules/next/dist/docs` (if present) before using any API you're unsure of. This version may differ from what you remember.
