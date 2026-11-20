@@ -5,3 +5,4 @@ Team MAIN 08 at the MAIN Summit & AI Hackathon 2026 (Maastricht, 20–21 Nov), r
 - What we're building: [docs/system-design.md](./docs/system-design.md)
 - How we work, schedule, rules: [CLAUDE.md](./CLAUDE.md)
 - Getting set up: [TEAM_SETUP.md](./TEAM_SETUP.md)
+- Live: https://centrix-fix.vercel.app (runs on mock data until the API is live)
