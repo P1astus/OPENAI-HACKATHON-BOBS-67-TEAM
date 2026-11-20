@@ -1,0 +1,149 @@
+import type { Company, CompanyRating, Invoice, Person, Property, Ticket, TicketStatus, Unit } from "../types";
+
+export type InvoiceView = Invoice & { overdue: boolean };
+export type CompanyView = Company & { rating: CompanyRating };
+export type Bootstrap = { properties: Property[]; units: Unit[]; people: Person[] };
+export type Balance = {
+  months: { month: string; earned_eur: number; paid_eur: number; outstanding_eur: number; jobs: number }[];
+};
+
+export type InvoiceFilter = { owner_id?: string; tenant_id?: string; company_id?: string };
+export type TicketFilter = InvoiceFilter & { status?: TicketStatus };
+export type CreateTicketInput = { tenant_id: string; unit_id: string; claim: string };
+
+export class ApiError extends Error {
+  constructor(message: string, public readonly status: number) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
+function withQuery(path: string, filter: InvoiceFilter | TicketFilter): string {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(filter)) {
+    if (value !== undefined) params.set(key, value);
+  }
+  const query = params.toString();
+  return query ? `${path}?${query}` : path;
+}
+
+type Mock = typeof import("./mock");
+
+async function request<T>(
+  path: string,
+  runMock: (mock: Mock) => Promise<T>,
+  { method = "GET", body, mockDelay = 300 }: { method?: "GET" | "POST"; body?: object; mockDelay?: number } = {},
+): Promise<T> {
+  if (process.env.NEXT_PUBLIC_USE_MOCKS === "1") {
+    const mock = await import("./mock");
+    await new Promise<void>((resolve) => setTimeout(resolve, mockDelay));
+    return runMock(mock);
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15_000);
+
+  try {
+    const response = await fetch(path, {
+      method,
+      signal: controller.signal,
+      ...(body === undefined ? {} : {
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }),
+    });
+
+    if (response.ok) return await response.json() as T;
+
+    const payload: unknown = await response.json().catch(() => null);
+    const message = payload && typeof payload === "object" && "error" in payload && typeof payload.error === "string"
+      ? payload.error
+      : `Something went wrong (${response.status})`;
+    throw new ApiError(message, response.status);
+  } catch (error) {
+    if (controller.signal.aborted) throw new ApiError("The request timed out", 408);
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function ticketPath(id: string) {
+  return `/api/tickets/${encodeURIComponent(id)}`;
+}
+
+export async function getBootstrap(): Promise<Bootstrap> {
+  return request("/api/bootstrap", (mock) => mock.getBootstrap());
+}
+
+export async function getTickets(filter: TicketFilter = {}): Promise<Ticket[]> {
+  return request(withQuery("/api/tickets", filter), (mock) => mock.getTickets(filter));
+}
+
+export async function getTicket(id: string): Promise<Ticket> {
+  return request(ticketPath(id), (mock) => mock.getTicket(id));
+}
+
+export async function createTicket(input: CreateTicketInput): Promise<Ticket> {
+  return request("/api/tickets", (mock) => mock.createTicket(input), {
+    method: "POST", body: input, mockDelay: 2500,
+  });
+}
+
+export async function assignTicket(id: string, company_id: string): Promise<Ticket> {
+  return request(`${ticketPath(id)}/assign`, (mock) => mock.assignTicket(id, company_id), {
+    method: "POST", body: { company_id },
+  });
+}
+
+export async function approveTicket(id: string, approved: boolean): Promise<Ticket> {
+  return request(`${ticketPath(id)}/approve`, (mock) => mock.approveTicket(id, approved), {
+    method: "POST", body: { approved },
+  });
+}
+
+export async function bookSlot(id: string, slot: string, data_shared: string[]): Promise<Ticket> {
+  return request(`${ticketPath(id)}/book`, (mock) => mock.bookSlot(id, slot, data_shared), {
+    method: "POST", body: { slot, consent: { data_shared } },
+  });
+}
+
+export async function acceptTicket(id: string): Promise<Ticket> {
+  return request(`${ticketPath(id)}/accept`, (mock) => mock.acceptTicket(id), { method: "POST" });
+}
+
+export async function completeTicket(id: string, amount_eur: number): Promise<{ ticket: Ticket; invoice: Invoice }> {
+  return request(`${ticketPath(id)}/complete`, (mock) => mock.completeTicket(id, amount_eur), {
+    method: "POST", body: { amount_eur },
+  });
+}
+
+export async function rateTicket(id: string, rating: number): Promise<{ ticket: Ticket; company_rating: CompanyRating }> {
+  return request(`${ticketPath(id)}/rate`, (mock) => mock.rateTicket(id, rating), {
+    method: "POST", body: { rating },
+  });
+}
+
+export async function getInvoices(filter: InvoiceFilter = {}): Promise<InvoiceView[]> {
+  return request(withQuery("/api/invoices", filter), (mock) => mock.getInvoices(filter));
+}
+
+export async function forwardInvoice(id: string): Promise<Invoice> {
+  return request(`/api/invoices/${encodeURIComponent(id)}/forward`, (mock) => mock.forwardInvoice(id), { method: "POST" });
+}
+
+export async function payInvoice(id: string): Promise<Invoice> {
+  return request(`/api/invoices/${encodeURIComponent(id)}/pay`, (mock) => mock.payInvoice(id), { method: "POST" });
+}
+
+export async function getCompanies(): Promise<CompanyView[]> {
+  return request("/api/companies", (mock) => mock.getCompanies());
+}
+
+export async function getCompanyBalance(id: string): Promise<Balance> {
+  return request(`/api/companies/${encodeURIComponent(id)}/balance`, (mock) => mock.getCompanyBalance(id));
+}
+
+export async function resetDemo(): Promise<{ ok: true }> {
+  return request("/api/reset", (mock) => mock.resetMock(), { method: "POST" });
+}
