@@ -4,10 +4,21 @@ Read `CLAUDE.md` for how we work. This page is just what you need to start.
 
 ## 1. Get the repo
 ```bash
-git clone <REPO_URL> main-hackathon && cd main-hackathon
+git clone https://github.com/P1astus/OPENAI-HACKATHON-BOBS-67-TEAM.git main-hackathon && cd main-hackathon
 cp .env.example .env.local      # then paste the keys the team shares (or leave blank for now)
 ```
-There is no app code yet. We decide what to build and which tools to use after the challenge reveal (Fri 11:00). Once the stack is chosen, the install and run commands for it go here.
+Install dependencies and start the dev server at http://localhost:3000.
+
+```bash
+npm install
+npm run dev
+```
+
+Run the checks before merging.
+
+```bash
+npm run typecheck && npm run lint && npm run build
+```
 
 ## 2. Who edits what
 We have no fixed split yet. At kickoff (Fri 13:30) we agree on who owns which files or areas and write it down in the team chat. One owner per file, so nobody collides.
@@ -28,7 +39,7 @@ git push -u origin feat/<your-area>        # then open a Pull Request into main
 - Conflict? Stop and ask. It means two people touched one file.
 
 ## 4. Deploy (whoever the team picks, before Sat 10:30)
-Submission needs a live URL, so deploy a working version early (Fri evening) and redeploy as it improves. The exact commands depend on the stack; with Next.js on Vercel it is `npx vercel --prod`, plus the env vars in the Vercel project settings.
+The `main` branch auto-deploys to Vercel production, and pull requests get preview URLs. Set the environment variables in the Vercel project settings. The submission needs a live URL, so merge a working version by Friday evening.
 
 ## 5. Key times
 Fri 09:00 check-in, Ad Fundum · 09:10 Meeting Area F · 11:00 challenge reveal · 13:30 sprint in room 0.001, Grote Gracht 80–82 · **Sat 10:30 submission deadline** · 11:00 re-check-in, Sint Janskerk · 15:00 Grand Finale pitches.
