@@ -170,11 +170,14 @@ The provider response has `success` (boolean), `message` (string), and optional 
 
 ## 8. Test scenarios
 
+End-to-end live test (20 Nov): tenant reported "locked out, key broke" → AI triage locksmith (urgent, 99%) → no partner covers locksmith → app called the non-partner Schlüsseldienst am Markt via ElevenLabs + Twilio (routed to the tester's phone by `VOICE_TEST_TO_NUMBER`) → agent collected Monday 09:00 and 14:00 → `submit_slots` posted to the live API → times appeared in the tenant app → tenant booked with consent.
+
+
 Each submitted payload includes the same ticket and company IDs from the call context.
 
 | What the plumber says | Expected agent behaviour | Expected payload | Status |
 | --- | --- | --- | --- |
-| “Monday 23 November at 09:00 or 14:00, or Tuesday 24 November at 11:00.” | Repeat all three Berlin times, confirm them, and submit once. | Three slots and the summary from section 5. | to rehearse |
+| “Monday 23 November at 09:00 or 14:00, or Tuesday 24 November at 11:00.” | Repeat all three Berlin times, confirm them, and submit once. | Three slots and the summary from section 5. | **passed** (live call, 20 Nov: two slots offered, submitted as `2026-11-23T08:00:00Z` and `2026-11-23T13:00:00Z`, tenant booked) |
 | “Only Wednesday 25 November at 10:00 next week.” | Confirm the date and time and accept the single slot. | `slots: ["2026-11-25T09:00:00Z"]` and a one-sentence summary. | to rehearse |
 | “We're fully booked.” | Thank the company, submit the empty result, then end the call. | `slots: []` and a summary such as “The company is fully booked.” | to rehearse |
 | “What should we charge?” | Say normal rates apply and the property owner approves costs above €300. Return to collecting times without agreeing a price. | No payload for the question alone. Submit confirmed slots and an outcome summary once the company responds about availability. | to rehearse |
@@ -189,7 +192,7 @@ Each submitted payload includes the same ticket and company IDs from the call co
 | Accents, background noise and date recognition | The agent may mishear a weekday or time. It asks for a concrete start time and repeats the weekday, date and time for confirmation. |
 | Timezone conversion | The agent may apply the wrong Berlin offset around daylight-saving changes. The server validates ISO 8601 and normalizes timestamps to UTC. A valid timestamp can still encode the wrong hour. |
 | Answering machines | A recorded greeting can sound like a person. The prompt instructs the agent to submit zero slots and hang up without leaving a message when it detects voicemail. |
-| Twilio trial limits | Outbound calls can reach only verified recipients. Verify the teammate's number before rehearsing. [Twilio trial restriction](https://www.twilio.com/docs/api/errors/14111) |
+| Twilio limits | Our account is on full access (no trial restrictions), but every destination country must be enabled in Voice geo permissions. On a trial account, outbound calls can reach only verified recipients. Verify the teammate's number before rehearsing. [Twilio trial restriction](https://www.twilio.com/docs/api/errors/14111) |
 | Requests outside the script | If the company needs details the agent cannot provide, the call may produce no slots and require a property manager to follow up. |
 | Latency and missing callbacks | Dialling, turn-taking and the webhook can take time. A ticket can remain `matched` with zero slots if the call starts but no callback arrives. The app has a start-request timeout and currently has no callback deadline. |
 
@@ -214,7 +217,7 @@ For the manual fallback, an admin can open a ticket in `needs_human` or `emergen
 
 - [ ] To recreate the setup, create the agent with section 3's settings, first message and prompt. Add the eight dynamic variables and enable `end_call`.
 - [ ] Create and attach the `submit_slots` webhook tool using section 5's schema, variable bindings, static header and timeout.
-- [ ] **Twilio to be connected.** In ElevenLabs go to **Phone Numbers → Import → Twilio**, import a Twilio number and link it to the agent. Enter the Twilio Account SID and Auth Token in the dashboard only. For trial use, verify the phone number of the teammate playing the company. [ElevenLabs Twilio import guide](https://elevenlabs.io/docs/eleven-agents/phone-numbers/twilio-integration/native-integration)
+- [x] **Twilio connected (20 Nov).** US number imported in ElevenLabs as "centrix demo", linked to the agent; voice geo permissions on for the Netherlands and Poland. In ElevenLabs go to **Phone Numbers → Import → Twilio**, import a Twilio number and link it to the agent. Enter the Twilio Account SID and Auth Token in the dashboard only. For trial use, verify the phone number of the teammate playing the company. [ElevenLabs Twilio import guide](https://elevenlabs.io/docs/eleven-agents/phone-numbers/twilio-integration/native-integration)
 - [ ] Set the server-only variables in the Vercel project and redeploy. Keep local copies in teammates' `.env.local` files only.
 - [ ] Verify the webhook with the curl check below. Then rehearse the live call scenarios with the verified demo recipient.
 
