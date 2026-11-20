@@ -1,8 +1,10 @@
-# MAIN 08 — Autonomous AI Operations & Decision Engine
+# MAIN 08: hackathon playbook
 
-Project context for Claude Code and teammates. Read fully before changing anything.
+Context for Claude Code and teammates. Read fully before changing anything.
 
-## 1. Event & schedule — MAIN Summit & AI Hackathon 2026 (Maastricht, "Where every field meets AI")
+**Status:** the challenge is revealed Fri Nov 20, 11:00–13:00. Until then there is no agreed product and no app code: this repo holds only the team docs. We decide what to build, and with which tools, together after the reveal (section 4).
+
+## 1. Event & schedule: MAIN Summit & AI Hackathon 2026 (Maastricht, "Where every field meets AI")
 Largest student-led AI hackathon in the Netherlands.
 
 | When | What |
@@ -16,62 +18,63 @@ Largest student-led AI hackathon in the Netherlands.
 | Sat 12:00–15:00+ | Main stage keynotes (Microsoft NL, High-Tech Gründerfonds, OpenAI alumnus Michael Aring) |
 | Sat 15:00+ | **Grand Finale** live stage pitches (projector at Sint Janskerk) |
 
-## 2. Team MAIN 08
-Antoni Potrykowski (Business Engineering), Marlene Heydenreich, Timo Aavila, Diana Piskareva. No team lead: four equal members. Four people, one repo, one night: strict module boundaries (section 5) exist so branches never touch the same file.
+## 2. Team
+Antoni Potrykowski, Marlene Heydenreich, Timo Aavila, Diana Piskareva. Four equal members, no team lead. Decisions are made together; roles are agreed at kickoff (section 4) and can change.
 
-## 3. Sponsors & jury criteria
-Credits: **OpenAI** (intelligence, tool calling, structured outputs), **ElevenLabs** (TTS voice briefings), **n8n Cloud Pro** (real actions via webhooks).
-Jury = OpenAI engineers + VCs + enterprise executives. We win on:
-1. **True agentic architecture**: multi-step reasoning, explicit tool calls, self-verification, transparent live trace. Never a chat wrapper.
-2. **Cohesive multi-sponsor integration**: OpenAI orchestrates, n8n executes real actions, ElevenLabs briefs executives.
-3. **Quantified business ROI**: hours saved/month, annual EUR savings, automation %, confidence score, risks + mitigations on every output.
-4. **Bulletproof stage reliability**: stateless (no DB/auth), one-command Vercel deploy, **Stage Demo Mode** (timed SSE simulation when keys are absent or Wi-Fi drops), browser `speechSynthesis` fallback, `localStorage` last-5-runs for instant Q&A switching.
+## 3. Sponsors & what the jury rewards
+Credits: **OpenAI** (models, tool calling, structured outputs), **ElevenLabs** (voice), **n8n Cloud Pro** (real actions via webhooks). Using all three is optional; use each only where it makes the product better.
+Jury = OpenAI engineers + VCs + enterprise executives. Judging criteria published by OpenAI for its own events: technical implementation, design and user experience, potential impact, quality of the idea. What we aim for:
+1. **A demo that runs end to end.** The biggest score difference in what judges report. A working narrow demo beats an ambitious one on slides.
+2. **One clear sentence** that says what it is and for whom, said first.
+3. **A real agent**, not a chat wrapper: multi-step work, explicit tool calls, self-checking, steps visible on screen.
+4. **Business value in numbers** that come from deterministic code, never from model text (hours saved, EUR saved, confidence), plus risks and honest limits.
+5. **Human in control and grounded answers**: ask for confirmation when unsure; say "I can't tell" rather than guess.
+6. **A specific user and workflow**, not "AI for everyone".
 
-## 4. Architecture
-Next.js App Router + TypeScript (strict) + Tailwind v4. Flow: `Input → OpenAI planner & tool loop → ROI & verifier → human gate / n8n webhook → ElevenLabs briefing`, streamed to the UI as SSE `TraceStep` events and a final `AgentDeliverable`.
+## 4. How we work
+**Kickoff (Fri 13:30, first 30–60 min, before any code).** Write down in one place:
+- The problem and the specific user, in one sentence each.
+- Our one-sentence pitch ("this is a tool that does X for Y").
+- The demo path: one short flow, 2 minutes or less, that we build everything toward.
+- The tech stack, chosen for the fastest route to a live URL (for example Next.js + Vercel). Set it up in one commit on `main`, then branch from it.
+- Who owns what (one owner per file or area, to avoid conflicts), and who prepares the pitch in parallel.
+- Must-have vs nice-to-have. Nice-to-haves go on the "what's next" slide, not into code.
 
-```
-src/
-  types/agent.ts              Shared contracts: TraceStep, BusinessImpact, AgentDeliverable + Zod schemas
-  lib/domain/                 ALL domain logic (swap on challenge reveal)
-    presets.ts                  agent prompts, 3 one-click scenarios, stage-demo data, prompt→scenario routing
-    calculators.ts              deterministic ROI formula + verifier checks (the LLM never invents numbers)
-  lib/integrations/           Sponsor plumbing (domain-agnostic)
-    openai.ts                   tool-calling loop, 3 tools, json_object + Zod synthesis, Stage Demo playback, live→demo failover
-    elevenlabs.ts               TTS (eleven_turbo_v2_5) → audio or null (= fallback)
-    n8n.ts                      webhook POST, 6s AbortController timeout, simulated on failure/no URL
-  lib/stream.ts, history.ts   client SSE parser; localStorage last-5 runs
-  app/api/agent|tts|workflow|health/route.ts   SSE agent, TTS, approve-and-dispatch, boolean key status
-  app/page.tsx + components/  Command Center UI (CommandBar, LauncherPanel, DeliverablePanel, N8nActionCard, VoiceBriefingPlayer, TracePanel, ArchitectureModal)
-n8n/                        exported n8n workflow JSON + import guide
-```
-Tools: `calculate_business_roi` (→ `domain/calculators.ts`), `verify_and_ground_output` (→ confidence + trade-offs), `prepare_or_execute_n8n_workflow` (auto-dispatch or `pending_approval`).
-Commands: `npm run dev` · `npx tsc --noEmit` · `npm run lint` · `npm run build` (all must exit 0 before merging).
-Env (`.env.local`, copy from `.env.example`): `OPENAI_API_KEY`, `OPENAI_MODEL=gpt-4o`, `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID`, `N8N_WEBHOOK_URL`. Any missing key degrades gracefully: demo mode / browser voice / simulated dispatch.
+**Build.**
+- Get one end-to-end path running by early evening, then improve it. Do not extend it.
+- Test with realistic inputs every hour or so. Pick the scenarios that work reliably and demo only those.
+- Mock only things outside the core. Never fake the core product.
+- Team planning talk around 19:00: who sleeps when, who works on what, when we regroup. Stagger sleep; before sleeping, leave notes on what is done and blocked.
+- Deploy a working version to a live URL on Friday evening, then redeploy as it improves.
+- Stuck for 20 minutes: say so in the team chat.
 
-## 5. Module ownership (one owner per file → no merge conflicts)
-| Branch | Suggested owner | Owns (edit freely) | Do not edit |
-|---|---|---|---|
-| `feat/agent-core` | Antoni | `src/lib/integrations/openai.ts`, `elevenlabs.ts`, `src/app/api/agent/`, `api/tts/`, `api/health/`, `src/types/agent.ts` | domain/, components/, n8n/ |
-| `feat/domain-presets` | Marlene | `src/lib/domain/presets.ts`, `src/lib/domain/calculators.ts` | everything else |
-| `feat/ui-dashboard` | Timo | `src/components/**`, `src/app/page.tsx`, `layout.tsx`, `globals.css`, `src/lib/stream.ts`, `history.ts` | lib/integrations/, lib/domain/, api/ |
-| `feat/n8n-workflows` | Diana | `n8n/**`, `src/lib/integrations/n8n.ts`, `src/app/api/workflow/` | everything else |
+**Finish (proposed times, adjust together).**
+- Sat ~07:30: feature freeze. Only fixes after this.
+- Sat 07:30–10:00: end-to-end test, record a 60-second screen capture of a good run as a backup, rehearse the pitch out loud with a timer, check the live URL from a clean browser.
+- Submit by ~10:00, with 30 minutes of margin before 10:30.
 
-Rules: `src/types/agent.ts` is the contract. Only additive changes (new optional fields), announced in the team chat first, made on `feat/agent-core`. Need a change in someone else's file? Ask the owner; do not edit it. Antoni merges PRs into `main`.
+**Pitch.**
+- One person works on the pitch from early on, not at the end; everyone still speaks a little.
+- Open with the one sentence. Problem, demo, result in numbers, honest limits, "what's next".
+- Practise on people who resemble the jury (mentors, sponsor staff) and fix what they point out.
+- Prepare an honest answer to "what breaks first?".
+- Backups in order: live demo, recorded run, offline demo mode if the product has one.
+
+## 5. Git workflow
+- One branch per person or area, named `feat/<area>`. Small, frequent commits.
+- Pull latest `main` before starting and before pushing. Never push to `main` directly; never force-push.
+- Anyone can merge a PR into `main` once one other teammate has reviewed it. `main` must always work.
+- Need a change in a file someone else owns? Ask them; don't edit it.
+- A conflict means two people touched one file: stop and ask.
 
 ## 6. Engineering & security rules
-- TypeScript strict, no `any`; validate everything external (LLM JSON, request bodies) with Zod `.safeParse`. No TODO/stub code on `main`.
-- Secrets only via env on the server. Never `NEXT_PUBLIC_` for keys, never log or return key values (`/api/health` returns booleans only), never commit `.env.local`.
-- Stay stateless: no DB, no auth, no server-side sessions. Persistence = browser `localStorage` only.
-- Numbers (hours, EUR, confidence) come from deterministic code, not LLM text.
-- Every integration must fail soft (timeout + fallback) so the stage demo can never hard-crash.
-- Before every merge: `npx tsc --noEmit && npm run lint && npm run build`.
+- Secrets only via environment variables on the server. Never prefix keys with `NEXT_PUBLIC_`, never log or print key values, never commit `.env.local`. Check `git status` before every commit.
+- Validate anything external (model output, request bodies) before using it.
+- Numbers shown to users (money, hours, scores) come from deterministic code, not model text.
+- Every external call needs a timeout and a fallback so one failing service cannot crash the demo.
+- Keep it simple and stateless unless the product needs more. No database or login unless the challenge requires it.
+- Before every merge, the project's checks must pass (type check, lint, build and any tests we set up). Write the exact commands here once the stack is chosen.
+- If we use a framework that changed recently (for example Next.js), check its bundled or official docs before using unfamiliar APIs.
 
-## 7. One-Prompt Challenge Pivot (reveal is in the 11:00–13:00 ceremony; be done before the 13:30 sprint)
-Paste the challenge text into Claude Code with: *"Pivot this app to the challenge below. Edit only the files listed in CLAUDE.md section 7, keep all exports and signatures, then run `npx tsc --noEmit && npm run lint && npm run build`."*
-1. **`src/lib/domain/presets.ts`**: rewrite `SYSTEM_PROMPT` + `SYNTHESIS_INSTRUCTIONS`; replace the 3 `PRESETS` (context + `demo` block: plan, ROI inputs, constraints, recommendations, risks, summary, voice script, n8n payload), their `keywords`, and `genericDemoScenario`.
-2. **`src/lib/domain/calculators.ts`**: adapt the ROI formula (`calculateBusinessRoi`) and verifier checks (`verifyAndGroundOutput`) to the challenge KPIs. If argument names change, update the matching tool JSON schemas in `integrations/openai.ts` (`TOOLS`) and the demo inputs in `presets.ts`.
-3. **`src/types/agent.ts`**: only if the challenge needs extra fields; add optional fields, keep existing ones.
-4. **`src/app/page.tsx`** (+ `components/CommandBar.tsx`, `DeliverablePanel.tsx` if wording must change): titles, labels, KPI wording.
-5. **`n8n/`**: extend the workflow for the challenge's real action, export JSON, set `N8N_WEBHOOK_URL`.
-Then rehearse Stage Demo first (works offline), then Live. If anything is flaky on stage, toggle **Stage Demo**.
+## 7. Current code
+There is none. The old starter app (agent loop, dashboard, n8n workflow, `/pivot` and `/preflight` skills) and its project setup were deleted. They are still in git history (commits `4652e83` and `1fdf803`) if a piece is ever useful, but we do not build on them.

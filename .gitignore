@@ -4,11 +4,11 @@
 .pnp.*
 .yarn/*
 
-# next.js
+# build output (any stack)
 /.next/
 /out/
 /build
-next-env.d.ts
+/dist
 
 # secrets (keep the template)
 .env
