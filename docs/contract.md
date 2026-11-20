@@ -159,13 +159,21 @@ Completing a job appends `invoiced` and `paid_from_wallet`. Forwarding appends `
 | `POST /api/invoices/:id/forward` | owner | – | `Invoice` (wallet-paid owner invoices only, wallet refunded, `payer: "tenant"`, `forwarded_at: now`, `status: "not_paid"`, `paid_at: null`) |
 | `POST /api/invoices/:id/pay` | tenant | – | `Invoice` (`status: "paid"`, `paid_at: now`). Only unpaid tenant invoices are eligible. Owner invoices return 409. |
 | `GET /api/companies` | admin, partner | – | `(Company & { rating: CompanyRating })[]` |
-| `GET /api/companies/:id/balance` | Unused in v1.1 | – | Company payment terms and accounting are handled by reltix finance. |
 | `POST /api/agent/voice-result` | ElevenLabs webhook | `{ ticket_id, company_id, slots: string[], summary }` + header `x-webhook-secret` | `{ ok: true }` |
 | `POST /api/reset` | demo operator | – | reseeds all data from `data/*.json` |
 
+## Behaviour notes (v1.2, implemented in `lib/flow.ts`)
+- `POST /api/tickets` returns 400 if the tenant doesn't live in the unit. Triage runs first (safety keywords → `emergency`, no model). Then `needs_human = trade === null || confidence < 0.7 || urgency === "emergency"` is decided in code. When the ticket goes to a human, `candidates` holds suggestions for the admin (every active company for the trade, radius ignored).
+- Partner slots are the next 3 free `calendar_slots` at least 2 h from now. For a non-partner, the API starts the ElevenLabs call and returns `proposed_slots: []`, and the slots arrive through `voice-result`. **Without ElevenLabs configured, the call is simulated** and the timeline says so. If the call fails, or the company offers no time, the ticket goes to `needs_human`.
+- `approve` with `approved: false` → `owner_approval: "rejected"`, status `needs_human` (the property manager decides).
+- `rate` appends `company_removed` or `potential_partner` events when that changes. The company's `status` flips to `blacklisted` automatically when its label is `bad`.
+- Event types: `reported`, `triaged`, `needs_human`, `emergency`, `no_partner`, `matched`, `owner_approval_requested`, `approved`, `rejected`, `calling_company`, `call_started`, `slots_proposed`, `booked`, `accepted`, `invoiced`, `paid_from_wallet`, `forwarded_to_tenant`, `invoice_paid`, `rated`, `company_removed`, `potential_partner`.
+- `voice-result` needs `x-webhook-secret` equal to `VOICE_WEBHOOK_SECRET` (401 otherwise, and always 401 when the secret isn't set). The ticket must be `matched` to that company with no slots yet (409 otherwise).
+- `POST /api/reset` returns `{ ok: true, source: "data" | "builtin" }`.
+
 ## Where the data lives
-- Seed: `data/properties.json`, `units.json`, `people.json`, `companies.json`, `tickets.json`, `invoices.json` (arrays of the types above).
+- Seed: `data/properties.json`, `units.json`, `people.json`, `companies.json`, `tickets.json`, `invoices.json` (arrays of the types above). They are used only when **all six** exist and pass validation. Otherwise the built-in demo seed in `lib/seed.ts` is used. Partner calendars are always topped up with future working-day slots (09:00, 11:00, 14:00 Berlin time). Run `npm run check:data` after editing the data.
 - Live state: Upstash Redis (one key holding the whole state) when `UPSTASH_REDIS_REST_URL` is set, otherwise in memory (local dev). `POST /api/reset` copies the seed back in.
 
 ## Environment variables (server only, never `NEXT_PUBLIC_`)
-`OPENAI_API_KEY`, `OPENAI_MODEL`, `ELEVENLABS_API_KEY`, `ELEVENLABS_AGENT_ID`, `VOICE_WEBHOOK_SECRET`, `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`, `N8N_WEBHOOK_URL`.
+`OPENAI_API_KEY`, `OPENAI_MODEL`, `ELEVENLABS_API_KEY`, `ELEVENLABS_AGENT_ID`, `ELEVENLABS_PHONE_NUMBER_ID`, `VOICE_TEST_TO_NUMBER` (demo: call the teammate instead of the company), `VOICE_WEBHOOK_SECRET`, `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`, `N8N_WEBHOOK_URL`. See `.env.example` for what happens when each one is missing.
