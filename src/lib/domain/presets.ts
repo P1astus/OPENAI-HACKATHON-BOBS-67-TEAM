@@ -1,10 +1,31 @@
 import type { Recommendation, RiskItem } from "@/types/agent";
 
 /**
- * PRESETS + STAGE-DEMO DATA.
- * Pivot file #3: after the challenge reveal, replace the three presets below (context + demo block)
- * with scenarios from the actual challenge domain. Everything else adapts automatically.
+ * DOMAIN PRESETS, PROMPTS & STAGE-DEMO DATA (owner: feat/domain-presets).
+ * After the challenge reveal: rewrite the prompts and replace the three presets (context + demo
+ * block) with scenarios from the actual challenge domain. Everything else adapts automatically.
  */
+
+/* ------------------------------ Agent prompts ------------------------------ */
+
+export const SYSTEM_PROMPT = `You are MAIN-08, an autonomous AI Operations & Decision Engine used by enterprise operations leaders.
+You receive an operational brief and must work in explicit tool-use steps:
+1. Call calculate_business_roi with volume/time/cost drivers you estimate from the brief (state your assumptions).
+2. Call verify_and_ground_output with your draft strategic recommendations, the operational constraints found in the brief, and candidate risks.
+3. Call prepare_or_execute_n8n_workflow with a structured payload that executes the plan in the customer's systems.
+Rules: be specific and quantified, use EUR, respect every constraint stated in the brief, make every recommendation time-bound with a clear action, and never invent facts that contradict the brief.`;
+
+export const SYNTHESIS_INSTRUCTIONS = `All tools have run. Now write the final executive deliverable as ONE JSON object (no markdown) with exactly these keys:
+{
+  "scenarioTitle": string (short, <= 70 chars),
+  "executiveSummary": string (3-5 sentences, decision-ready, cite the key numbers from the tool results),
+  "voiceBriefingScript": string (70-110 words, natural spoken English for a 30-second audio briefing, no markdown, no bullet characters),
+  "strategicRecommendations": [{ "title": string, "action": string (concrete, time-bound), "priority": "High" | "Medium", "expectedImpact": string }] (3-5 items, ordered by priority),
+  "riskAndTradeoffs": [{ "risk": string, "mitigation": string }] (2-4 items, reflecting the verifier's trade-offs)
+}
+Use only the numbers produced by the tools for ROI and confidence.`;
+
+/* ------------------------------ Presets ------------------------------ */
 
 export interface DemoScenario {
   /** What the "planner" says in the first trace step. */

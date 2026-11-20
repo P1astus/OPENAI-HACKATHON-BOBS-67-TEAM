@@ -1,4 +1,4 @@
-import { dispatchToN8n } from "@/lib/n8n";
+import { dispatchToN8n } from "@/lib/integrations/n8n";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

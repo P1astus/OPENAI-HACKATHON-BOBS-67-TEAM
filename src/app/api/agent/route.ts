@@ -1,5 +1,5 @@
 import { AgentRequestSchema, type StreamEvent } from "@/types/agent";
-import { runAgent } from "@/lib/openai";
+import { runAgent } from "@/lib/integrations/openai";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

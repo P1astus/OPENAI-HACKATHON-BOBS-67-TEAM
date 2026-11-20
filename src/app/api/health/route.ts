@@ -1,6 +1,6 @@
 import type { HealthStatus } from "@/types/agent";
-import { isElevenLabsConfigured } from "@/lib/elevenlabs";
-import { isN8nConfigured } from "@/lib/n8n";
+import { isElevenLabsConfigured } from "@/lib/integrations/elevenlabs";
+import { isN8nConfigured } from "@/lib/integrations/n8n";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

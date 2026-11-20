@@ -8,7 +8,7 @@ import LauncherPanel, { type Attachment } from "@/components/LauncherPanel";
 import DeliverablePanel from "@/components/DeliverablePanel";
 import TracePanel from "@/components/TracePanel";
 import type { AgentDeliverable, HealthStatus, N8nAction, RunRecord, TraceStep } from "@/types/agent";
-import type { Preset } from "@/lib/presets";
+import type { Preset } from "@/lib/domain/presets";
 import { streamAgent } from "@/lib/stream";
 import { loadHistory, saveRun, updateRunDeliverable } from "@/lib/history";
 

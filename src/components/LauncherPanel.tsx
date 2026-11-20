@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { Ship, Headset, Receipt, Play, Upload, X, History, Loader2, FileText } from "lucide-react";
-import { PRESETS, type Preset } from "@/lib/presets";
+import { PRESETS, type Preset } from "@/lib/domain/presets";
 import type { RunRecord } from "@/types/agent";
 
 export interface Attachment {

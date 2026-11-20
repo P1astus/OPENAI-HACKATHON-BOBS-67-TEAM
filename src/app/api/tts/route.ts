@@ -1,4 +1,4 @@
-import { synthesizeSpeech, isElevenLabsConfigured } from "@/lib/elevenlabs";
+import { synthesizeSpeech, isElevenLabsConfigured } from "@/lib/integrations/elevenlabs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
