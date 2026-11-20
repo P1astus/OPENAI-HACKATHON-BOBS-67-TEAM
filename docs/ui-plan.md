@@ -19,8 +19,8 @@ All four views share one slick, minimal look in the spirit of Apple's apps (our 
 
 ## Shared rules for all four views
 - One look for all (above), status shown as colored pills.
-- Same status set everywhere: **Reported → Matched → Scheduled → Done → Invoiced → Paid**, plus **Needs human** and **Emergency**.
-- Invoice pill: **Paid** (green), **Not paid** (grey), **Overdue** (red) + deadline date.
+- Ticket status pills show **Reported**, **Matched**, **Scheduled**, **Done**, **Invoiced**, **Paid**, **Awaiting owner**, **Needs human** and **Emergency**. A finished job goes straight to **Paid** when centrix pays from the wallet.
+- Invoice pills show **Paid** (green) or **Not paid** (grey).
 - Rating shown the same everywhere: score -1…1 as a meter with label **Good / Neutral / Bad / New (<5 reviews)**.
 - Contact cards (company ↔ tenant) only show phone/email after the tenant gave consent; a small "shared on <date>" line under it.
 - Tenant screen is phone-first (390 px). The other three are desktop dashboards that still work on a phone.
@@ -30,32 +30,32 @@ All four views share one slick, minimal look in the spirit of Apple's apps (our 
 - **My requests**: open requests as cards with status pill.
 - **Upcoming appointment**: date + time, company name, contact card (call / message), "reschedule" link.
 - **Finished appointments**: list with date, company, "Rate this job" (1–10 slider) if not rated yet.
-- **Invoices**: only invoices the owner forwarded to the tenant. Amount, Paid / Not paid, deadline, "Pay" button.
+- **Invoices** show only costs forwarded to the tenant, with amount, company, payment status and a **Pay** button for unpaid invoices. Empty state: "No costs for you. Repairs are paid by your landlord."
 - **Support**: chat button at the bottom (goes to the property manager).
 
 ## 2. Partner company (desktop)
 - **Today / upcoming jobs**: date, address, problem description, tenant contact card, "Accept" / "Propose other time".
-- **Done jobs**: list, "Mark done + upload invoice" on open ones.
+- **Done** shows the date, unit, summary, amount and an **Invoice sent** pill for each invoiced job. Show the muted line "Payment is handled by reltix within 30 days. centrix takes no commission."
 - **Rating meter**: big score with Good / Neutral / Bad label, number of reviews, last 5 reviews.
-- **Monthly balance**: earned this month, how much is already paid and how much is still outstanding, number of jobs; bar chart of the last 6 months. (We take no commission, so earned = what they invoiced.)
 - **Support**: contact the property manager.
 
 ## 3. Home owner (desktop, PMS / hotel-style dashboard)
-- Three columns like a front desk board: **Urgent** (emergencies, waiting for owner approval over €300) · **Upcoming** (scheduled jobs) · **Paid** (closed).
+- Three columns like a front desk board: **Urgent** (emergencies, waiting for owner approval over €300) · **Upcoming** (scheduled jobs) · **Done** (completed repairs).
 - Each card: unit, problem, company, cost, status.
 - **Approve** button on jobs over €300.
-- **Invoices** table: amount, Paid / Not paid pill, deadline, **"Forward to tenant"** button (owner decides who pays). Once forwarded the pill says "Forwarded to tenant · Not paid".
+- **Repairs paid from your wallet** shows the unit, company, job date, amount and a **Paid from wallet** or **Forwarded to tenant · Not paid/Paid** pill. **Charge to tenant** is available for wallet-paid invoices and opens an inline confirmation explaining the wallet refund and naming the tenant.
+- Under the section title, show "centrix pays finished repairs from your wallet. Payment terms with the company are handled by reltix."
 
 ## 4. Us / reltix (desktop admin)
 Tabs along the top:
 - **Tickets**: table with one row per ticket; label pill **Partner / Non-partner**; columns: claim (what the tenant said), repair type, company, cost, status. Click a row → side panel with the full ticket as readable fields plus a "Raw JSON" toggle showing the actual record.
-- **Invoices**: suggested grouping **by property, then by month**, with a filter bar for status (Not paid / Overdue / Paid) and payer (owner / tenant). Each group shows a subtotal. Reason: a property manager thinks per building, and month groups match the owners' monthly statements.
+- **Invoices** shows a flat table, newest first, with date, property address, unit, company, amount, payer and payment status. Filter by **Owner wallet** or **Tenant**.
 - **Companies by rating**: sorted list, score meter, label, review count, partner or not.
 - **Partners** and **Potential partners**: two lists. Potential partners show why they qualify (reviews >6 count, score) and an "Approach" button.
 - **Blacklist**: companies removed for score below -0.3, with their score and last reviews.
 
 ## How we build it (straight to code)
-Proposed stack (team confirms at kickoff): **Next.js + Tailwind + shadcn/ui** (ready-made tables, tabs, cards, badges, charts).
+Proposed stack (team confirms at kickoff): **Next.js + Tailwind + shadcn/ui** (ready-made tables, tabs, cards and badges).
 
 **We use Vercel for the UI:**
 - **v0 (Vercel's UI generator)** makes the first version of each screen from the specs in sections 1–4. v0 outputs Next.js + Tailwind + shadcn/ui, so it's the same stack and the code drops straight into our repo. We then wire it to our data and shared pieces by hand.
@@ -65,7 +65,7 @@ Proposed stack (team confirms at kickoff): **Next.js + Tailwind + shadcn/ui** (r
 1. **Setup commit on `main`** (one person): Next.js app, Tailwind, shadcn/ui, the shared pieces below, and seed JSON in `data/`.
 2. **Shared pieces first** (`components/`), so the four views look the same:
    - `StatusPill` (Reported … Paid, Needs human, Emergency)
-   - `InvoicePill` (Paid / Not paid / Overdue + deadline)
+   - `InvoicePill` (Paid / Not paid)
    - `RatingMeter` (-1…1, Good / Neutral / Bad / New)
    - `ContactCard` (phone/email, hidden until consent, "shared on …")
    - `TicketCard`
@@ -76,11 +76,11 @@ Proposed stack (team confirms at kickoff): **Next.js + Tailwind + shadcn/ui** (r
    - `/partner`
    - `/owner`
    - `/admin` (tabs: Tickets, Invoices, Companies, Partners, Potential partners, Blacklist)
-6. Buttons (Accept, Approve, Forward to tenant, Rate, Mark done) change the data through small API routes, so a click on one screen shows up on the others. That's the "close the loop" moment in the demo.
+6. Buttons (Accept, Approve, Charge to tenant, Pay, Rate, Mark done) change the data through small API routes, so a click on one screen shows up on the others. That's the "close the loop" moment in the demo.
 
-Order of work: shared pieces + seed data → tenant and admin views (needed for the demo) → owner → partner. Monthly charts and the support chat come last.
+Order of work: shared pieces + seed data → tenant and admin views (needed for the demo) → owner → partner → support chat.
 
 ## Verification
 - Every item from the user's list appears on its screen (checklist in sections 1–4).
-- Run the heater story end to end: tenant reports → admin sees ticket → partner accepts → owner approves/forwards → tenant pays and rates → admin shows new rating. Each step visible on the right screen.
+- Run the heater story end to end: tenant reports → admin sees the ticket → owner approves when required → tenant books → partner completes the job → centrix pays from the wallet → owner charges the tenant → tenant pays and rates → admin shows the new rating. Each step is visible on the right screen.
 - Tenant view checked at phone width; type check, lint and build pass before each merge.

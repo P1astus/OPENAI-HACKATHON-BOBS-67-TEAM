@@ -13,6 +13,8 @@ Product rules live in [system-design.md](./system-design.md). This file only say
 
 ## Types (`types.ts`)
 
+UI ignores `due_at` and `overdue`: payment terms are handled by reltix finance (v1.1)
+
 ```ts
 export type Trade =
   | "heating" | "plumbing" | "electrical" | "locksmith" | "appliances"
@@ -131,11 +133,13 @@ matched ──≤ €300──► (slots)
 (slots) partner: proposed_slots filled from calendar_slots
         non-partner: proposed_slots filled by the voice agent webhook
 proposed_slots set ──tenant books + consent──► scheduled
-scheduled ──company marks done + amount──► invoiced   (invoice created, payer "owner")
-invoiced ──paid──► paid
+scheduled ──company marks done + amount──► paid   (invoice paid immediately from the owner's centrix wallet)
+paid ──owner forwards a wallet-paid invoice + wallet refund──► invoiced   (tenant pays)
+invoiced ──tenant pays──► paid
 rating can be posted from "invoiced" or "paid"
 ```
 Every transition appends a `TicketEvent`. A request in the wrong state returns 409.
+Completing a job appends `invoiced` and `paid_from_wallet`. Forwarding appends `forwarded_to_tenant`.
 
 ## API routes
 
@@ -149,13 +153,13 @@ Every transition appends a `TicketEvent`. A request in the wrong state returns 4
 | `POST /api/tickets/:id/approve` | owner | `{ approved: boolean }` | `Ticket` |
 | `POST /api/tickets/:id/book` | tenant | `{ slot, consent: { data_shared } }` | `Ticket` (scheduled) |
 | `POST /api/tickets/:id/accept` | company | – | `Ticket` (event only) |
-| `POST /api/tickets/:id/complete` | company | `{ amount_eur }` | `{ ticket, invoice }` |
+| `POST /api/tickets/:id/complete` | company | `{ amount_eur }` | `{ ticket, invoice }` (both paid immediately from the centrix wallet, `payer: "owner"`, `paid_at: now`) |
 | `POST /api/tickets/:id/rate` | tenant | `{ rating }` (1–10) | `{ ticket, company_rating }` |
 | `GET /api/invoices?owner_id=&tenant_id=&company_id=` | all | – | `(Invoice & { overdue })[]` |
-| `POST /api/invoices/:id/forward` | owner | – | `Invoice` (payer → tenant) |
-| `POST /api/invoices/:id/pay` | owner / tenant | – | `Invoice` (paid) |
+| `POST /api/invoices/:id/forward` | owner | – | `Invoice` (wallet-paid owner invoices only, wallet refunded, `payer: "tenant"`, `forwarded_at: now`, `status: "not_paid"`, `paid_at: null`) |
+| `POST /api/invoices/:id/pay` | tenant | – | `Invoice` (`status: "paid"`, `paid_at: now`). Only unpaid tenant invoices are eligible. Owner invoices return 409. |
 | `GET /api/companies` | admin, partner | – | `(Company & { rating: CompanyRating })[]` |
-| `GET /api/companies/:id/balance` | partner | – | `{ months: { month, earned_eur, paid_eur, outstanding_eur, jobs }[] }` last 6 months |
+| `GET /api/companies/:id/balance` | Unused in v1.1 | – | Company payment terms and accounting are handled by reltix finance. |
 | `POST /api/agent/voice-result` | ElevenLabs webhook | `{ ticket_id, company_id, slots: string[], summary }` + header `x-webhook-secret` | `{ ok: true }` |
 | `POST /api/reset` | demo operator | – | reseeds all data from `data/*.json` |
 

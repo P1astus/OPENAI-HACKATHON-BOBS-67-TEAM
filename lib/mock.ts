@@ -1,6 +1,5 @@
 import {
   ApiError,
-  type Balance,
   type Bootstrap,
   type CompanyView,
   type CreateTicketInput,
@@ -66,21 +65,6 @@ function invoiceView(invoice: Invoice, now: number): InvoiceView {
   return { ...invoice, overdue: invoice.status === "not_paid" && now > Date.parse(invoice.due_at) };
 }
 
-function companyBalance(invoices: Invoice[], now: Date): Balance {
-  return {
-    months: Array.from({ length: 6 }, (_, index) => {
-      const month = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 5 + index, 1))
-        .toISOString().slice(0, 7);
-      const jobs = invoices.filter(({ issued_at }) => issued_at.startsWith(month));
-      const earned = jobs.reduce((sum, invoice) => sum + Math.round(invoice.amount_eur * 100), 0);
-      const paid = jobs.reduce((sum, invoice) => (
-        invoice.status === "paid" ? sum + Math.round(invoice.amount_eur * 100) : sum
-      ), 0);
-      return { month, earned_eur: earned / 100, paid_eur: paid / 100, outstanding_eur: (earned - paid) / 100, jobs: jobs.length };
-    }),
-  };
-}
-
 // Typical labor hours used for the demo's fixed-price estimates.
 const typicalHours: Record<Trade, number> = {
   heating: 2, plumbing: 1.5, electrical: 1.5, locksmith: 1, appliances: 1.5,
@@ -122,10 +106,14 @@ function rankCompanies(options: { company: Company; distance_km: number; est_cos
   }).sort((a, b) => b.match - a.match);
 }
 
+function companyOptions(property: Property, trade: Trade | null) {
+  return state.companies
+    .filter((company) => company.status === "active" && (trade === null || company.trades.includes(trade)))
+    .map((company) => ({ company, distance_km: distanceKm(property, company), est_cost_eur: estimate(company, trade) }));
+}
+
 function matchingCompanies(property: Property, trade: Trade): MatchCandidate[] {
-  const eligible = state.companies
-    .filter((company) => company.status === "active" && company.trades.includes(trade))
-    .map((company) => ({ company, distance_km: distanceKm(property, company), est_cost_eur: estimate(company, trade) }))
+  const eligible = companyOptions(property, trade)
     .filter(({ company, distance_km }) => distance_km <= company.service_radius_km);
   const partners = eligible.filter(({ company }) => company.is_partner);
   return rankCompanies(partners.length ? partners : eligible);
@@ -195,6 +183,11 @@ function addEvent(ticket: Ticket, actor: TicketEvent["actor"], type: string, mes
   ticket.events.push({ at, actor, type, message });
 }
 
+function recordWalletPayment(ticket: Ticket, ownerName: string, at: string) {
+  addEvent(ticket, "company", "invoiced", "Repair completed and invoice issued to the owner.", at);
+  addEvent(ticket, "agent", "paid_from_wallet", `Paid from ${ownerName}'s centrix wallet`, at);
+}
+
 function reportedTicket(id: string, { unit_id, tenant_id, claim }: CreateTicketInput, at = nowIso()): Ticket {
   const ticket: Ticket = {
     id, unit_id, tenant_id, claim, created_at: at, triage: null, candidates: [],
@@ -249,9 +242,10 @@ function seedTicket({
   if (invoice) {
     ticket.invoice_id = invoice.id;
     addEvent(ticket, "company", "accepted", "The company confirmed the job.", milestone(60));
-    addEvent(ticket, "company", "completed", "Repair completed and invoice issued to the owner.", invoice.issued_at);
-    if (invoice.forwarded_at) addEvent(ticket, "owner", "invoice_forwarded", "Invoice forwarded to the tenant.", invoice.forwarded_at);
-    if (invoice.paid_at) addEvent(ticket, "owner", "invoice_paid", "Invoice paid.", invoice.paid_at);
+    const unit = bootstrap.units.find(({ id }) => id === unit_id)!;
+    const owner = bootstrap.people.find(({ id }) => id === unit.owner_id)!;
+    recordWalletPayment(ticket, owner.name, invoice.issued_at);
+    if (invoice.forwarded_at) addEvent(ticket, "owner", "forwarded_to_tenant", "Invoice forwarded to the tenant and the wallet refunded.", invoice.forwarded_at);
   }
   if (rating !== null) {
     ticket.rating = rating;
@@ -266,17 +260,17 @@ const invoices: Invoice[] = [
   {
     id: "inv_heater", ticket_id: "t_heater", company_id: warmhaus.id, unit_id: "unit_2l", property_id: "prop_muster",
     amount_eur: 228, issued_at: daysFrom(seedTime, -3), due_at: daysFrom(seedTime, 11),
-    payer: "owner", forwarded_at: null, status: "not_paid", paid_at: null,
+    payer: "owner", forwarded_at: null, status: "paid", paid_at: daysFrom(seedTime, -3),
   },
   {
     id: "inv_radiator", ticket_id: "t_radiator", company_id: warmhaus.id, unit_id: "unit_1r", property_id: "prop_muster",
     amount_eur: 184.5, issued_at: daysFrom(seedTime, -48), due_at: daysFrom(seedTime, -34),
-    payer: "owner", forwarded_at: null, status: "paid", paid_at: daysFrom(seedTime, -43),
+    payer: "owner", forwarded_at: null, status: "paid", paid_at: daysFrom(seedTime, -48),
   },
   {
     id: "inv_drain", ticket_id: "t_drain", company_id: aquafix.id, unit_id: "unit_2l", property_id: "prop_muster",
-    amount_eur: 148, issued_at: daysFrom(seedTime, -23), due_at: daysFrom(seedTime, -9),
-    payer: "tenant", forwarded_at: daysFrom(seedTime, -21), status: "not_paid", paid_at: null,
+    amount_eur: 148, issued_at: daysFrom(seedTime, -6), due_at: daysFrom(seedTime, 8),
+    payer: "tenant", forwarded_at: daysFrom(seedTime, -4), status: "not_paid", paid_at: null,
   },
 ];
 
@@ -298,7 +292,7 @@ const tickets = [
   }),
   seedTicket({
     id: "t_heater", unit_id: "unit_2l", tenant_id: "p_lena", claim: "The heating is on but every radiator in my flat is cold.",
-    createdDays: -7, summary: "Restore heating to cold radiators throughout the flat.", trade: "heating", status: "invoiced",
+    createdDays: -7, summary: "Restore heating to cold radiators throughout the flat.", trade: "heating", status: "paid",
     options: [[warmhaus, 228], [thermoplus, 258], [rheinservice, 276]], chosen: warmhaus, invoice: invoices[0],
   }),
   seedTicket({
@@ -348,13 +342,13 @@ const tradeKeywords: [Trade, RegExp][] = [
 ];
 
 function triageClaim(claim: string): Triage {
+  const trade = tradeKeywords.find(([, keywords]) => keywords.test(claim))?.[0] ?? null;
   if (/\bgas\b|gasgeruch|flood|wasserrohrbruch|water everywhere|ceiling dripping|\bfire\b|smoke|sparks|burning smell|no power.*(?:flat|apartment)|stromausfall/i.test(claim)) {
     return {
-      trade: null, urgency: "emergency", confidence: 1, summary: "Possible emergency reported.",
+      trade, urgency: "emergency", confidence: 1, summary: "Possible emergency reported.",
       needs_human: true, reason: "An emergency keyword requires manual handling.", source: "rules",
     };
   }
-  const trade = tradeKeywords.find(([, keywords]) => keywords.test(claim))?.[0] ?? null;
   return {
     trade, urgency: trade === "heating" ? "urgent" : "normal", confidence: trade ? 0.9 : 0.35,
     summary: trade ? `Reported ${trade.replaceAll("_", " ")} issue.` : "Repair details are unclear.",
@@ -432,15 +426,17 @@ export async function createTicket(input: CreateTicketInput): Promise<Ticket> {
   const ticket = reportedTicket(`t_demo_${nextTicket++}`, input);
   ticket.triage = triageClaim(input.claim);
   addEvent(ticket, "agent", "triaged", ticket.triage.summary);
-  if (ticket.triage.trade) {
-    ticket.candidates = matchingCompanies(property, ticket.triage.trade);
+  const { trade, needs_human, urgency } = ticket.triage;
+  if (!needs_human && urgency !== "emergency" && trade) {
+    ticket.candidates = matchingCompanies(property, trade);
   }
 
   const top = ticket.candidates[0];
   if (top) {
     matchTicket(ticket, findCompany(top.company_id), top.est_cost_eur, "agent");
   } else {
-    ticket.status = ticket.triage.urgency === "emergency" ? "emergency" : "needs_human";
+    ticket.status = urgency === "emergency" ? "emergency" : "needs_human";
+    ticket.candidates = rankCompanies(companyOptions(property, trade));
     ticket.triage.needs_human = true;
     ticket.triage.reason ||= "No active company covers this trade and location.";
     addEvent(ticket, "agent", ticket.status, ticket.triage.reason);
@@ -508,16 +504,18 @@ export async function completeTicket(id: string, amount_eur: number): Promise<{ 
   const amount = roundMoney(amount_eur);
   if (!Number.isFinite(amount) || amount <= 0) throw new ApiError("Enter a positive invoice amount", 400);
   const unit = findUnit(ticket.unit_id);
+  const owner = byId(state.people, unit.owner_id, "Owner");
   const now = Date.now();
+  const at = daysFrom(now, 0);
   const invoice: Invoice = {
     id: `inv_${ticket.id.slice(2)}`, ticket_id: id, company_id: ticket.company_id!, unit_id: unit.id,
-    property_id: unit.property_id, amount_eur: amount, issued_at: daysFrom(now, 0),
-    due_at: daysFrom(now, 14), payer: "owner", forwarded_at: null, status: "not_paid", paid_at: null,
+    property_id: unit.property_id, amount_eur: amount, issued_at: at,
+    due_at: daysFrom(now, 14), payer: "owner", forwarded_at: null, status: "paid", paid_at: at,
   };
   ticket.invoice_id = invoice.id;
-  ticket.status = "invoiced";
+  ticket.status = "paid";
   state.invoices.unshift(invoice);
-  addEvent(ticket, "company", "completed", "Repair completed and invoice issued to the owner.", invoice.issued_at);
+  recordWalletPayment(ticket, owner.name, at);
   return structuredClone({ ticket, invoice });
 }
 
@@ -546,18 +544,21 @@ export async function getInvoices(filter: InvoiceFilter = {}): Promise<InvoiceVi
 
 export async function forwardInvoice(id: string): Promise<Invoice> {
   const invoice = findInvoice(id);
-  requireState(invoice.status === "not_paid" && invoice.payer === "owner", "This invoice cannot be forwarded");
+  requireState(invoice.status === "paid" && invoice.payer === "owner", "This invoice cannot be forwarded");
   const ticket = findTicket(invoice.ticket_id);
   invoice.payer = "tenant";
   invoice.forwarded_at = nowIso();
-  addEvent(ticket, "owner", "invoice_forwarded", "Invoice forwarded to the tenant.", invoice.forwarded_at);
+  invoice.status = "not_paid";
+  invoice.paid_at = null;
+  ticket.status = "invoiced";
+  addEvent(ticket, "owner", "forwarded_to_tenant", "Invoice forwarded to the tenant and the wallet refunded.", invoice.forwarded_at);
   return structuredClone(invoice);
 }
 
 export async function payInvoice(id: string): Promise<Invoice> {
   const invoice = findInvoice(id);
   const ticket = findTicket(invoice.ticket_id);
-  requireState(invoice.status === "not_paid" && ticket.status === "invoiced", "This invoice cannot be paid");
+  requireState(invoice.payer === "tenant" && invoice.status === "not_paid" && ticket.status === "invoiced", "Only an unpaid tenant invoice can be paid");
   invoice.status = "paid";
   invoice.paid_at = nowIso();
   ticket.status = "paid";
@@ -567,11 +568,6 @@ export async function payInvoice(id: string): Promise<Invoice> {
 
 export async function getCompanies(): Promise<CompanyView[]> {
   return structuredClone(state.companies.map((company) => ({ ...company, rating: companyRating(company) })));
-}
-
-export async function getCompanyBalance(id: string): Promise<Balance> {
-  findCompany(id);
-  return companyBalance(state.invoices.filter(({ company_id }) => company_id === id), new Date());
 }
 
 export async function resetMock(): Promise<{ ok: true }> {

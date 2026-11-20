@@ -4,10 +4,11 @@ import { CalendarDays, Check, Clock3, LoaderCircle, MapPin, Wrench } from "lucid
 import { useId, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import {
-  ContactCard, EmptyState, ErrorBlock, GroupedList, InvoicePill, LoadingBlock,
+  ContactCard, EmptyState, ErrorBlock, GroupedList, LoadingBlock,
   Money, StatusPill, formatDate, formatDateTime,
 } from "@/components/index";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
@@ -206,6 +207,7 @@ export function DoneJobs({ companyId }: { companyId: string }) {
   return (
     <section aria-labelledby="done-heading" className="space-y-3">
       <h2 id="done-heading" className="section-label font-medium">Completed jobs</h2>
+      <p className="text-sm text-muted-foreground">Payment is handled by reltix within 30 days. centrix takes no commission.</p>
       {error ? <ErrorBlock message={error.message} onRetry={() => void Promise.all([tickets.mutate(), invoices.mutate(), bootstrap.mutate()])} />
         : !jobs || !invoiceList || !lookups ? <LoadingBlock />
         : !jobs.length ? <EmptyState icon={<Wrench className="size-5" />} title="No completed jobs" description="Finished repairs and their invoices will appear here." />
@@ -222,7 +224,10 @@ export function DoneJobs({ companyId }: { companyId: string }) {
                   <h3 className="font-semibold">{ticket.triage?.summary ?? ticket.claim}</h3>
                 </div>
                 {invoice
-                  ? <div className="flex flex-wrap items-center gap-2"><Money value={invoice.amount_eur} className="font-semibold tabular-nums" /><InvoicePill invoice={invoice} /></div>
+                  ? <div className="flex flex-wrap items-center gap-2">
+                      <Money value={invoice.amount_eur} className="font-semibold tabular-nums" />
+                      <Badge variant="secondary" className="h-auto rounded-full px-2.5 py-1">Invoice sent</Badge>
+                    </div>
                   : <p className="text-sm text-muted-foreground">No invoice yet</p>}
               </article>
             );

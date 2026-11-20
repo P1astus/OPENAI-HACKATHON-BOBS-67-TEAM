@@ -5,12 +5,10 @@ import useSWR, { mutate } from "swr";
 import {
   getBootstrap,
   getCompanies,
-  getCompanyBalance,
   getInvoices,
   getTicket,
   getTickets,
   type ApiError,
-  type Balance,
   type Bootstrap,
   type CompanyView,
   type InvoiceFilter,
@@ -51,14 +49,6 @@ export function useInvoices(filter: InvoiceFilter = {}) {
 
 export function useCompanies() {
   return useSWR<CompanyView[], ApiError>("/api/companies", () => getCompanies(), polling);
-}
-
-export function useCompanyBalance(id?: string | null) {
-  return useSWR<Balance, ApiError, readonly [string, string] | null>(
-    id ? ["/api/companies/balance", id] : null,
-    ([, companyId]) => getCompanyBalance(companyId),
-    polling,
-  );
 }
 
 export function refreshAll() {

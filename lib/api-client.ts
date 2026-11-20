@@ -3,9 +3,6 @@ import type { Company, CompanyRating, Invoice, Person, Property, Ticket, TicketS
 export type InvoiceView = Invoice & { overdue: boolean };
 export type CompanyView = Company & { rating: CompanyRating };
 export type Bootstrap = { properties: Property[]; units: Unit[]; people: Person[] };
-export type Balance = {
-  months: { month: string; earned_eur: number; paid_eur: number; outstanding_eur: number; jobs: number }[];
-};
 
 export type InvoiceFilter = { owner_id?: string; tenant_id?: string; company_id?: string };
 export type TicketFilter = InvoiceFilter & { status?: TicketStatus };
@@ -138,10 +135,6 @@ export async function payInvoice(id: string): Promise<Invoice> {
 
 export async function getCompanies(): Promise<CompanyView[]> {
   return request("/api/companies", (mock) => mock.getCompanies());
-}
-
-export async function getCompanyBalance(id: string): Promise<Balance> {
-  return request(`/api/companies/${encodeURIComponent(id)}/balance`, (mock) => mock.getCompanyBalance(id));
 }
 
 export async function resetDemo(): Promise<{ ok: true }> {
