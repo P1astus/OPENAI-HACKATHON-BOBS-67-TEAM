@@ -3,19 +3,20 @@
 Compiled from the whiteboard session, Fri Nov 20.
 
 ## 1. In one sentence
-When something breaks in an apartment, we find the best company to fix it (a partner we already work with, or a local company we find), book the appointment with the tenant, bill the owner, and use the tenant's rating to decide which companies to keep, remove or sign as partners.
+When something breaks in an apartment, we find the best company to fix it, book the appointment with the tenant, pay for the finished repair from the owner's centrix wallet, and use the tenant's rating to decide which companies to keep, remove or sign as partners.
 
 ## 2. Who uses it
 | Who | What they see |
 |---|---|
 | **Tenant** | Report a problem, confirm the appointment, see the status, rate the job (1–10). Sees an invoice only if the owner forwards it. |
-| **Home owner** | Dashboard: urgent, upcoming, paid. Gets every invoice and decides who pays. Approves jobs over €500. Can hand a job to the tenant to handle. |
+| **Home owner** | Dashboard with urgent, upcoming and done repairs. Sees invoices paid from their centrix wallet and can charge a repair to the tenant. Approves jobs over €300. Can hand a job to the tenant to handle. |
 | **Property manager / us (reltix)** | All tickets and invoices, partner list, potential partners, removed companies. Handles emergencies and cases with no match. |
 | **Repair company** | Partners: jobs come in through their calendar. Non-partners: an AI phone call. |
 
 ## 3. Business model
-- **Only home owners pay: a subscription** for the service. That is our whole revenue.
+- **The owners' subscription** is the service's only source of revenue.
 - **No commission from anyone.** Partners and non-partners pay us nothing, and we take no cut of their invoices. The company bills the job at its normal price.
+- **centrix manages the owner's wallet.** Finished repairs are paid from that wallet automatically. reltix finance handles company payments within 30 days and owns the accounting. Due dates and overdue statuses are outside the product scope.
 - **Why partners still join:** steady jobs with no marketing cost, booking straight from their calendar, and every job comes with the context they need already filled in.
 
 ## 4. Two kinds of companies
@@ -35,7 +36,7 @@ When something breaks in an apartment, we find the best company to fix it (a par
 8. **Tenant picks a date.** If no date works, go back to step 7.
 9. **Connect tenant and company.** Phone numbers are exchanged only after the tenant agrees. We save what was shared, when and how (consent record).
 10. **Work is done.** The company marks the job done.
-11. **Invoice** goes to the home owner and is linked to the apartment in centrix. The owner decides who pays: they pay it, or they forward it to the tenant with one click (for example for small repairs the lease puts on the tenant).
+11. **centrix links the invoice to the apartment and pays it immediately from the owner's wallet.** The owner can charge the cost to the tenant, for example when the tenant caused the damage. Forwarding refunds the owner's wallet and gives the tenant an unpaid invoice they can pay in centrix.
 12. **Feedback form** goes to the tenant: "How happy are you with the repair, 1 to 10?" Satisfaction is the only thing we measure.
 13. **Rating update** (section 7). It changes who gets picked next time, who gets removed and which non-partners we approach.
 
@@ -109,6 +110,6 @@ A company can meet rules 1 and 2 and still have a low average, for example revie
 | AI phone call to non-partner | ElevenLabs voice agent calling a teammate who plays the company. Build after the main flow works. |
 | Tenant date pick, owner approval, invoice + forward to tenant, feedback form | Simple web pages. Must-have. |
 | Matching + rating + promotion + removal | Pure code. Must-have, and easy to show live. |
-| Owner dashboard extras, monthly balance sheets, subscription billing | Nice-to-have, goes on the "what's next" slide. |
+| Owner dashboard extras, subscription billing | Nice-to-have, goes on the "what's next" slide. |
 
-**Demo path (2 minutes):** heater breaks → partner picked and booked from their calendar → tenant confirms → job done → invoice on the apartment, owner forwards or pays → tenant rates 9/10 → score updates live. Second, short: no partner fits, the AI calls a non-partner with 4 earlier good reviews, the tenant gives the 5th, and it shows up under "potential partners".
+**Demo path (2 minutes)** — heater breaks → partner picked and booked from their calendar → tenant confirms → job done → centrix pays the invoice from the owner's wallet → owner charges the tenant and the wallet is refunded → tenant pays and rates 9/10 → score updates live. In the second demo, the AI calls a non-partner with four earlier good reviews. The tenant gives the fifth and the company appears under "potential partners".

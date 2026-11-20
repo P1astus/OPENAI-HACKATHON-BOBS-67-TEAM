@@ -6,7 +6,7 @@ import { ResetDemoButton } from "./admin/_components/reset-demo-button";
 const views = [
   { name: "Tenant", description: "Lena Hoffmann · reports a problem", href: "/tenant?as=p_lena", icon: Smartphone },
   { name: "Partner", description: "WarmHaus Heizungstechnik · gets the job", href: "/partner?as=c_warmhaus", icon: Wrench },
-  { name: "Owner", description: "Maria Becker · approves and pays", href: "/owner?as=p_maria", icon: Home },
+  { name: "Owner", description: "Maria Becker · approves repairs and sees wallet payments", href: "/owner?as=p_maria", icon: Home },
   { name: "Operations", description: "reltix property manager", href: "/admin", icon: LayoutDashboard },
 ];
 
@@ -15,7 +15,7 @@ export default function HomePage() {
     <>
       <PageHeader
         title="centrix Fix"
-        subtitle="Something breaks. We find the best company, book it with the tenant, bill the owner."
+        subtitle="We find a repair company and book with the tenant. centrix pays for the finished repair from the owner's wallet."
       />
       <main className="fade-in mx-auto w-full max-w-5xl px-4 pt-2 pb-12 sm:px-6">
         <nav aria-label="Demo views">

@@ -113,7 +113,7 @@ function Resident({ viewer }: { viewer: string }) {
           {invoices.error ? (
             <ErrorBlock message={invoices.error.message} onRetry={() => void invoices.mutate()} />
           ) : !tenantInvoices ? <LoadingBlock /> : tenantInvoices.length === 0 ? (
-            <EmptyState icon={<ReceiptText className="size-5" />} title="No invoices for you." description="Repairs are billed to your landlord." />
+            <EmptyState icon={<ReceiptText className="size-5" />} title="No costs for you." description="Repairs are paid by your landlord." />
           ) : companyError || (companies.isLoading ? <LoadingBlock /> : (
             <GroupedList>
               {tenantInvoices.map((invoice) => <InvoiceRow key={invoice.id} invoice={invoice} company={companyFor(invoice.company_id)} />)}

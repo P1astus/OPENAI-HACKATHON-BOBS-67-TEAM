@@ -128,20 +128,9 @@ const ticket: Ticket = {
   ],
 };
 
-const invoice: Invoice & { overdue: boolean } = {
-  id: "invoice-heater",
-  ticket_id: ticket.id,
-  company_id: company.id,
-  unit_id: unit.id,
-  property_id: property.id,
+const invoice: Pick<Invoice, "amount_eur" | "status"> = {
   amount_eur: 317.5,
-  issued_at: "2026-11-21T12:00:00Z",
-  due_at: "2026-12-05T12:00:00Z",
-  payer: "owner",
-  forwarded_at: null,
   status: "not_paid",
-  paid_at: null,
-  overdue: false,
 };
 
 const statuses = [
@@ -228,8 +217,7 @@ export default function ComponentShowcase() {
               <p className="font-semibold">Heater repair invoice <Money value={invoice.amount_eur} className="ms-2 tabular-nums" /></p>
               <div className="flex flex-wrap gap-2">
                 <InvoicePill invoice={invoice} />
-                <InvoicePill invoice={{ ...invoice, overdue: true }} />
-                <InvoicePill invoice={{ ...invoice, status: "paid", paid_at: "2026-11-26T10:00:00Z" }} />
+                <InvoicePill invoice={{ status: "paid" }} />
               </div>
             </div>
           </section>

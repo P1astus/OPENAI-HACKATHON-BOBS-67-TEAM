@@ -65,7 +65,7 @@ export function OwnerDashboard() {
                   </section>
                 ))}
               </div>
-              <OwnerInvoices ownerId={viewer} units={units} companies={companyList}
+              <OwnerInvoices ownerId={viewer} units={units} companies={companyList} people={bootstrap.data?.people}
                 lookupError={bootstrap.error ?? companies.error}
                 retryLookups={() => Promise.all([bootstrap.mutate(), companies.mutate()])} />
             </>

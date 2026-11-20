@@ -9,9 +9,9 @@ import {
 } from "@/components/index";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { payInvoice, rateTicket, type CompanyView, type InvoiceView } from "@/lib/api-client";
+import { payInvoice, rateTicket, type CompanyView } from "@/lib/api-client";
 import { refreshAll } from "@/lib/hooks";
-import type { Ticket } from "@/types";
+import type { Invoice, Ticket } from "@/types";
 
 export function Appointment({ ticket, company }: { ticket: Ticket & { appointment_at: string }; company?: CompanyView }) {
   const { day, time } = formatSlot(ticket.appointment_at);
@@ -130,18 +130,15 @@ export function FinishedRepair({ ticket, company }: { ticket: Ticket; company?: 
   );
 }
 
-export function InvoiceRow({ invoice, company }: { invoice: InvoiceView; company?: CompanyView }) {
-  const [paid, setPaid] = useState<InvoiceView>();
+export function InvoiceRow({ invoice, company }: { invoice: Invoice; company?: CompanyView }) {
   const [busy, setBusy] = useState(false);
-  const display = paid ?? invoice;
 
   async function pay() {
-    if (busy || display.status === "paid") return;
+    if (busy || invoice.payer !== "tenant" || invoice.status !== "not_paid") return;
     setBusy(true);
     try {
-      const result = await payInvoice(invoice.id);
-      setPaid({ ...result, overdue: invoice.overdue });
-      void refreshAll();
+      await payInvoice(invoice.id);
+      await refreshAll();
     } catch (err) {
       toast.error((err as Error).message);
     } finally {
@@ -152,11 +149,11 @@ export function InvoiceRow({ invoice, company }: { invoice: InvoiceView; company
   return (
     <article className="flex items-center justify-between gap-3 p-4">
       <div className="min-w-0 space-y-1.5">
-        <p className="font-semibold"><Money value={display.amount_eur} /></p>
-        {company && <p className="text-sm text-muted-foreground wrap-anywhere">{company.name}</p>}
-        <InvoicePill invoice={display} />
+        <p className="font-semibold"><Money value={invoice.amount_eur} /></p>
+        <p className="text-sm text-muted-foreground wrap-anywhere">{company?.name ?? "Company unavailable"}</p>
+        <InvoicePill invoice={invoice} />
       </div>
-      {display.status !== "paid" && (
+      {invoice.status === "not_paid" && (
         <Button type="button" onClick={pay} disabled={busy} className="min-h-11 min-w-11 rounded-full px-4">
           {busy && <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />}
           {busy ? "Paying…" : "Pay"}
