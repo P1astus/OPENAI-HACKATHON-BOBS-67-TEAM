@@ -68,7 +68,7 @@ export function DemoPane({
       >
         <iframe
           src={src}
-          title={label}
+          aria-label={label}
           width={width}
           className="absolute left-0 top-0 block origin-top-left border-0"
           style={{ height: frame.height, transform: `scale(${frame.scale})` }}

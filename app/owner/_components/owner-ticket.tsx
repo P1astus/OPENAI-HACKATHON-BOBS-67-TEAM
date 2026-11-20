@@ -3,6 +3,7 @@
 import { ChevronRight, LoaderCircle, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { TenantContactCard } from "@/components/contact-card";
 import {
   EmptyState, ErrorBlock, GroupedList, GroupedRow, LoadingBlock, Money,
   StatusPill, TicketCard, Timeline, formatDateTime,
@@ -10,7 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { approveTicket } from "@/lib/api-client";
-import { refreshAll, useCompanies, useTicket } from "@/lib/hooks";
+import { refreshAll, useBootstrap, useCompanies, useTicket } from "@/lib/hooks";
 import type { Company, Ticket, Unit } from "@/types";
 
 export function OwnerTicket({ ticket, company, unit }: { ticket: Ticket; company?: Company; unit?: Unit }) {
@@ -82,16 +83,24 @@ export function OwnerTicket({ ticket, company, unit }: { ticket: Ticket; company
 function TicketDetails({ ticketId }: { ticketId: string }) {
   const ticket = useTicket(ticketId);
   const companies = useCompanies();
-  const error = ticket.error ?? companies.error;
+  const bootstrap = useBootstrap();
+  const error = ticket.error ?? companies.error ?? bootstrap.error;
   const data = ticket.data;
   const company = companies.data?.find(({ id }) => id === data?.company_id);
+  const unit = bootstrap.data?.units.find(({ id }) => id === data?.unit_id);
+  const tenant = bootstrap.data?.people.find(({ id }) => id === data?.tenant_id);
+  const owner = bootstrap.data?.people.find(({ id }) => id === unit?.owner_id);
 
   return (
     <div className="space-y-5 px-5 pb-6">
-      {error ? <ErrorBlock message={error.message} onRetry={() => void Promise.all([ticket.mutate(), companies.mutate()])} />
-        : !data || !companies.data ? <LoadingBlock />
+      {error ? <ErrorBlock message={error.message} onRetry={() => void Promise.all([ticket.mutate(), companies.mutate(), bootstrap.mutate()])} />
+        : !data || !companies.data || !bootstrap.data ? <LoadingBlock />
         : (
           <>
+            {tenant && data.status !== "done" && data.status !== "invoiced" && data.status !== "paid" && (
+              <TenantContactCard tenant={tenant} status={data.status} claim={data.claim}
+                unitLabel={unit?.label ?? "your unit"} senderName={owner?.name ?? "Your landlord"} />
+            )}
             <GroupedList>
               <GroupedRow title="Status" value={<StatusPill status={data.status} />} />
               <GroupedRow title="Tenant’s report" subtitle={data.claim} />

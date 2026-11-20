@@ -3,6 +3,7 @@
 import { Code2, History, LoaderCircle, X } from "lucide-react";
 import { useId, useState, type ReactNode } from "react";
 import { toast } from "sonner";
+import { TenantContactCard } from "@/components/contact-card";
 import {
   EmptyState, ErrorBlock, formatDateTime, LoadingBlock, Money, PartnerPill, StatusPill, Timeline,
 } from "@/components/index";
@@ -29,10 +30,11 @@ function DetailSection({ title, id, children }: { title: string; id?: string; ch
   );
 }
 
-function TicketDetails({ ticket, bootstrap, companies }: {
+function TicketDetails({ ticket, bootstrap, companies, unitLabel }: {
   ticket: Ticket;
   bootstrap: Bootstrap;
   companies: CompanyView[];
+  unitLabel: string;
 }) {
   const [pendingCompany, setPendingCompany] = useState<string | null>(null);
   const [showRaw, setShowRaw] = useState(false);
@@ -88,6 +90,10 @@ function TicketDetails({ ticket, bootstrap, companies }: {
           </div>
         ) : <EmptyState title="No triage yet" />}
       </DetailSection>
+      {tenant && (
+        <TenantContactCard tenant={tenant} status={ticket.status} claim={ticket.claim}
+          unitLabel={unitLabel} senderName="reltix property management" />
+      )}
       <DetailSection title="Why this company">
         {ticket.candidates.length === 0 ? (
           <EmptyState title="No ranked candidates" />
@@ -228,7 +234,8 @@ export function TicketSheet({ id, onClose, restoreFocus }: { id: string | null; 
           ) : !ticket.data || !companies.data || !bootstrap.data ? (
             <LoadingBlock />
           ) : (
-            <TicketDetails key={ticket.data.id} ticket={ticket.data} companies={companies.data} bootstrap={bootstrap.data} />
+            <TicketDetails key={ticket.data.id} ticket={ticket.data} companies={companies.data}
+              bootstrap={bootstrap.data} unitLabel={unit?.label ?? "your unit"} />
           )}
         </div>
       </SheetContent>
