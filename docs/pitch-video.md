@@ -1,47 +1,178 @@
-# Pitch video: script and shot list (2:30)
+# Pitch video: complete recording guide (2:30)
 
-## Arman: do exactly this
+**For:** Arman (recording + editing). **Deliverable:** one MP4, 1080p, **max 2:30**, uploaded in BuilderBase → Hand in → **Pitch Video**. **Ready by 09:30 Saturday** (hard deadline 10:30).
 
-1. **Prepare (5 min).** Laptop on a wide screen, Chrome or Safari, zoom 100 %, notifications off. Open https://centrix-fix.vercel.app/demo and press **Reset demo** (top right).
-2. **Phone.** The locksmith story makes the AI agent call a real phone. It currently rings **Antoni's phone**. Either record next to Antoni, or send Antoni your number (+country code) so he switches the demo to your phone. Phone on speaker, next to the laptop microphone.
-3. **Practise once** without recording: click through the "Screen" column below from top to bottom. Then press **Reset demo** again.
-4. **Record the screen** (`Cmd + Shift + 5` → record selected portion → the browser window). One take for the whole click-through is fine; pauses can be cut later. Don't talk during this take, except answering the phone call as the locksmith ("Yes, this is the locksmith. I can come Monday at 9 or Monday at 2 in the afternoon.").
-5. **Record the voice-over** separately: quiet room, read the "Voice-over" column slowly (QuickTime → New Audio Recording, or your phone's voice memo app).
-6. **Edit** (iMovie, CapCut or Descript): put the voice-over on top of the screen recording, cut waiting times (AI thinking, phone ringing) so the screen matches the words, keep the agent's first sentence on the phone audible. Add the title and end card text. **Total ≤ 2:30.**
-7. **Export** MP4, 1080p. Send it to Antoni or upload it in BuilderBase → Hand in → **Pitch Video**.
-8. **Before 09:30 Saturday** so we have time to fix things. Hard deadline 10:30.
+**What the video must prove** (this is how we're judged): the demo works end to end (30 %), it's easy for tenant, partner and owner (25 %), it's realistic about data, consent and privacy (20 %), any partner can plug in (15 %), and why this partner and this moment (10 %).
 
-If something in the app doesn't work during recording: press **Reset demo** and start that part again. If the phone doesn't ring within ~20 s, tell Antoni.
+**Two separate recordings, then edit them together:**
+1. **Screen recording** of the live app (no talking, except you answering the phone as the locksmith).
+2. **Voice-over** recorded afterwards, read from the "SAY" lines below.
 
 ---
 
-Target: 2 min 30 s, about 340 spoken words. Recorded on https://centrix-fix.vercel.app/demo (wide screen), plus the phone call on speaker.
-Before every take: press **Reset demo**, close other tabs, browser zoom 100 %, notifications off, phone on speaker next to the mic.
+## Part 1: Preparation (10 min)
 
-## Script
+### Laptop
+- [ ] Charger plugged in. **Do Not Disturb ON** (Control Centre → Focus). Close Slack, WhatsApp, Mail, Discord.
+- [ ] Browser: Chrome or Safari, **one window, one tab**, zoom **100 %** (`Cmd + 0`). Hide bookmarks bar (`Cmd + Shift + B` in Chrome).
+- [ ] Screen at least **1440 px wide** (the demo page needs ≥ 1200 px, otherwise it shows "Open on a wide screen"). Best: a 1080p external monitor, browser in full screen (`Ctrl + Cmd + F`).
+- [ ] Open **https://centrix-fix.vercel.app/demo**. You see a top bar ("centrix Fix · live demo", Back / Next, **Reset demo**) and four panes: **Tenant · Lena Hoffmann** (phone, left), **Partner · WarmHaus Heizungstechnik** (top middle), **Owner · Maria Becker** (top right), **reltix Operations** (bottom).
+- [ ] Click **Reset demo** (top right) → **Reset** to confirm. Wait 3 seconds. Do this **before every take**.
+- [ ] Tip: clicking a pane's **label** (e.g. "TENANT · LENA HOFFMANN") **enlarges** that pane; click the label again to go back to all four. Use this so viewers can read what you click.
 
-| Time | Screen (what to show / click) | Voice-over |
-|---|---|---|
-| **0:00–0:12** | Title card: "centrix Fix · repair matching for centrix". Then `/demo` with all four views. | "When something breaks in a rented flat, the tenant writes one sentence. centrix Fix finds the right repair company, books it, pays it and gets it rated. Zero forms for the tenant." |
-| **0:12–0:30** | Stay on `/demo`. Slowly point at the four panes: tenant phone, partner, owner, reltix operations. | "Today a broken heater means phone calls, emails and chasing: the tenant waits, the property manager coordinates by hand, and the company arrives without context. We plugged one repair partner network into centrix and connected all four sides on one screen." |
-| **0:30–0:58** | Lena's phone: **Report a problem** → type "The heating is cold in every room" → **Send**. Show the steps ("Reading your message…"). Result: WarmHaus, rating, 3 times. Tap a time → consent row → **Confirm booking**. Point at the partner pane updating. | "Lena reports the problem. Our AI reads it: heating, urgent, and how sure it is. Then not the AI but a formula picks the company: reviews, price and distance, partners first. Lena taps a time and agrees to share her contact. Only now does WarmHaus see her name and the access notes, and every screen updates live." |
-| **0:58–1:25** | Lena: **Report a problem** → "I'm locked out, the key broke off in the lock" → Send. Timeline shows "Calling Schlüsseldienst am Markt". **Phone rings** (on speaker): let the agent's greeting play ~5 s, answer "Monday at 9 or Monday at 2", let it confirm. Cut back: times appear on Lena's phone, she taps one. | "No partner does locks. So our voice agent phones a local locksmith that isn't on the platform yet." *(agent audio plays)* "It never shares Lena's details before she confirms. The times it agreed land straight in Lena's app. One tap, booked." |
-| **1:25–1:45** | Partner pane: green **Mark as done** on the knocking radiator → amount → **Send invoice**. Owner pane: "Paid from wallet". Lena's phone, section "Finished": her earlier heating repair → rating slider 9 → **Send rating**. Partner score moves. | "When the job is done, the company clicks one button. It's paid from the owner's centrix wallet, no invoices to chase and no commission taken. Tenants rate every finished repair, and the company's score updates. Bad scores drop out; good outside companies become potential partners." |
-| **1:45–2:05** | Owner pane: open "Unclear problem in the hallway". Show "Our assistant couldn't tell…". Type "The hallway radiator is ice cold" → **Find the right company** → matched. | "And when the AI can't tell what's wrong, it says so instead of guessing. The owner calls Lena, types one sentence, and the system takes over again." |
-| **2:05–2:20** | Show `docs/connector-spec.md` on GitHub (the three levels table) or a simple slide: Phone only · Calendar · Full API. | "Any company can plug in the same way: with just a phone number, with a calendar, or with a full API. That's our connector spec." |
-| **2:20–2:30** | Back to `/demo`, end card: "centrix Fix · Antoni, Arman, Timo, Valentin · centrix-fix.vercel.app". | "Owners pay a subscription, companies pay nothing. centrix Fix: from 'something's broken' to 'fixed and rated', without a single form." |
+### Phone (your phone plays the locksmith)
+- [ ] The app calls **your phone: +31 6 85172311**. It's already set up. The caller shows as **+1 270 289 7658** (US number). **Answer it.**
+- [ ] Phone **not on silent**, volume high, **charged**, next to the laptop.
+- [ ] When you answer: **speaker on**, phone lying next to the laptop microphone, so the screen recording also records the call audio. (An iPhone screen recording does NOT record call audio. The laptop mic must hear the speaker.)
+- [ ] Quiet room. No music.
 
-## Recording tips
-- **Screen:** QuickTime or `Cmd + Shift + 5` → record the browser window only. Record the demo in one take if possible; otherwise one clip per row above.
-- **Phone call audio:** an iPhone screen recording does not capture call audio. Put the phone on speaker next to the Mac microphone, or film the phone with a second phone.
-- **Voice-over:** record separately afterwards (quiet room, read the script slowly), or generate it with ElevenLabs text-to-speech from the "Voice-over" column.
-- **Timing:** the live AI steps take ~4–6 s and the call ~40–60 s. Speed those parts up or cut them in editing; keep the agent's first sentence audible.
-- **Honest:** say "partner calendars are simulated in the demo" if asked; the voice call, AI triage and matching are real.
+### Start the screen recording
+- `Cmd + Shift + 5` → **Record Selected Portion** (select the browser) or **Record Entire Screen** → **Options → Microphone: MacBook microphone** (so the phone call is recorded) → **Record**.
+- Stop with the ⏹ icon in the menu bar. The file lands on the Desktop.
 
-## Checklist
-- [ ] Reset demo before each take
-- [ ] Phone (+48 test number) charged, on speaker, not on silent
-- [ ] Clip 1–8 recorded
-- [ ] Voice-over recorded or generated
-- [ ] Edited to ≤ 2:30, exported as MP4 1080p
-- [ ] Uploaded to the hand-in form
+### Practise once
+Do the full click-through below **once without recording**. Then **Reset demo** and record for real.
+
+---
+
+## Part 2: The video, scene by scene
+
+Times are the target times **in the final edited video**. Recording takes longer (waiting for the AI and the call); you cut that in editing.
+
+### Scene 0 · 0:00–0:08 · Title card
+- **ON SCREEN:** black background, white text, centred:
+  - Line 1 (big): **centrix Fix**
+  - Line 2 (small): *Something breaks. One sentence. Fixed.*
+- **SAY:** "When something breaks in a rented flat, the tenant writes one sentence. centrix Fix finds the right repair company, books it, pays it and gets it rated."
+- **EDIT:** made in the editor (title tool), not recorded.
+
+### Scene 1 · 0:08–0:22 · The problem + the four screens
+- **ON SCREEN:** the `/demo` page with all four panes, untouched. Slowly move the mouse over each pane in order: Tenant → Partner → Owner → Operations (2 seconds each).
+- **CLICK:** nothing.
+- **SAY:** "Today a broken heater means phone calls, emails and chasing. The tenant waits, the property manager coordinates by hand, and the company shows up without context. We connected all four sides on one screen: the tenant, the repair company, the owner, and reltix."
+- **EDIT:** optional caption bottom-left: "Tenant · Partner · Owner · reltix, live".
+
+### Scene 2 · 0:22–0:52 · Lena reports a cold heater (partner flow)
+1. **CLICK** the label **TENANT · LENA HOFFMANN** (enlarges the phone).
+2. You see "Hi Lena", "Musterstraße 12 · 2nd floor left" and a blue button **Report a problem**. **CLICK** it.
+3. A sheet slides up with a text box ("What's wrong? E.g. The heating is cold in every room."). **CLICK** in the box and **TYPE** exactly:
+   `The heating is cold in every room since this morning.`
+4. **CLICK** the send button.
+5. **WAIT** (~4–6 s). The sheet shows the steps: **"Reviewing your report…"** → **"Checking repair options…"**.
+6. Result appears: **WarmHaus Heizungstechnik**, a blue **Partner** pill, rating **Good**, the summary, an **estimate in €, paid by the landlord**, and **Pick a time** with three time buttons.
+7. **CLICK** the **first time** button. A consent box appears: share **name, phone, address and access notes** with WarmHaus? **CLICK** **Confirm booking**.
+8. You see **"Appointment confirmed"**. Close the sheet (✕ or tap outside).
+9. **CLICK** the label **TENANT · LENA HOFFMANN** again → back to all four panes. Within 2 s the **Partner** pane shows the new job and the **Owner** pane shows it under **Upcoming**. Hover the mouse over those two for 2 s.
+- **SAY** (over steps 3–9): "Lena types one sentence. Our AI reads it: heating, urgent, and how sure it is. But a formula, not the AI, picks the company: reviews, price and distance, partners first. Lena taps a time and agrees to share her contact. Only now does WarmHaus see her name and access notes. And every screen updates live."
+- **EDIT:** cut the AI waiting time to ~2 s (or speed it up 3×). Caption when the result appears: "Matching = 50 % reviews · 30 % price · 20 % distance".
+
+### Scene 3 · 0:52–1:25 · Locked out → the AI phones a locksmith (the wow moment)
+1. **CLICK** **TENANT · LENA HOFFMANN** (enlarge) → **Report a problem** → **TYPE** exactly:
+   `I'm locked out, the key broke off in the front door lock.`
+   → send.
+2. **WAIT** ~5 s. The AI picks **Schlüsseldienst am Markt** (non-partner, because no partner does locks). Lena's screen says it's **calling Schlüsseldienst am Markt** for times.
+3. **YOUR PHONE RINGS** within ~10–20 s (+1 270 289 7658). **Answer, speaker on**, phone next to the laptop. Play the locksmith using the **call script in Part 3**. The whole call takes 30–60 s.
+4. The agent says goodbye and **hangs up by itself**. Within ~5 s Lena's screen shows **Pick a time** with **the times you said**.
+5. **CLICK** the first time → **Confirm booking** → **"Appointment confirmed"** → close the sheet → click the label again to show all four panes.
+- **SAY** (before the call): "No partner does locks. So our voice agent phones a local locksmith that isn't on the platform yet."
+- **(let ~8 s of the real call play, no voice-over)** Keep: the agent's greeting + your answer with the times.
+- **SAY** (after the call): "It never shares Lena's details before she confirms. The times it agreed land straight in Lena's app. One tap: booked."
+- **EDIT:** cut the ringing and most of the call; keep the greeting and your times (~8–10 s). **Add subtitles** for the call audio (people watch muted). Caption: "Real phone call · ElevenLabs voice agent".
+
+### Scene 4 · 1:25–1:45 · Job done → paid from the wallet → rated
+1. **CLICK** the label **PARTNER · WARMHAUS HEIZUNGSTECHNIK** (enlarge). Tab **Jobs**. The first card has a **green border**: *"Radiator knocking in the living room; bleed and check the valve."*, text *"Appointment was on … Finished? Mark it done to send the invoice."* and a green **Mark as done** button.
+2. **CLICK** **Mark as done**. A dialog **"Mark repair done"** opens with **Invoice amount (€)** (pre-filled). Change it to `95` → **CLICK** **Send invoice**. The job moves to the **Done** tab with **"Invoice sent"**.
+3. Click the label again (all four panes). Hover the **Owner** pane: the job shows as **Paid from wallet** (in the invoices/wallet section).
+4. **CLICK** **TENANT · LENA HOFFMANN** (enlarge). Scroll down to **Finished**: Lena's earlier heating repair *"Restore heating to cold radiators throughout the flat."* shows **"How happy are you with the repair?"** with a slider. Drag it to **9** → **CLICK** **Send rating** → toast **"Thanks! Your rating helps other tenants."**
+5. Click the label again. Hover the **Partner** pane header (rating bar, number of reviews goes up by one).
+- **SAY:** "When the job is done, the company clicks one button. It's paid straight from the owner's centrix wallet: no invoices to chase, no commission. Tenants rate every repair, and the company's score updates. Bad scores drop out; good outside companies become potential partners."
+- **EDIT:** speed up scrolling. Caption: "No commission · paid from the owner's wallet".
+
+### Scene 5 · 1:45–2:05 · The AI says "I can't tell" → a human clarifies
+1. **CLICK** the label **OWNER · MARIA BECKER** (enlarge). In the **Urgent** column, find the card **"Unclear problem in the hallway."** (pill **Needs a person**) → **CLICK** **View details**.
+2. A **Repair details** sheet opens: **Contact the tenant** (Lena, **Call Lena**, **Email Lena**) and the line *"Our assistant couldn't tell what's wrong…"*. Hover it for 2 s.
+3. Under **What's the actual problem?**, **CLICK** the box and **TYPE** exactly:
+   `Called Lena: the hallway radiator is ice cold.`
+4. **CLICK** **Find the right company**. Steps: **"Reading your note…"** → **"Matching companies…"** (~4–6 s). Result: it's clear now, **WarmHaus Heizungstechnik** is chosen and Lena gets times. The status changes from **Needs a person** to matched.
+5. Close the sheet, click the label again (all four panes).
+- **SAY:** "And when our AI can't tell what's wrong, it says so instead of guessing. The owner calls Lena, types one sentence, and the system takes over again: re-reads it, matches the right company, offers Lena times."
+- **EDIT:** cut waiting. Caption: "Human in control when the AI is unsure".
+- ⚠️ Do NOT type anything about water near lights/electricity: the AI correctly treats that as an emergency and won't auto-assign.
+
+### Scene 6 · 2:05–2:20 · Any partner can plug in (connector)
+- **ON SCREEN:** a simple slide (make it in the editor or Keynote), white background:
+  - Title: **One connector, three levels**
+  - Three columns:
+    1. **Phone only**: no IT needed. Our AI calls, agrees times, books. *(live in this demo)*
+    2. **Calendar**: the partner shares free times; tenants book in one tap. *(WarmHaus in this demo)*
+    3. **Full API**: status updates and invoices flow back automatically.
+  - Footer: *Consent first: partners see personal data only after the tenant confirms.*
+  - Alternative: screen-record GitHub → `docs/connector-spec.md` → section "3. Three integration levels" (scroll slowly).
+- **SAY:** "Any company can plug in the same way: with just a phone number, with a calendar, or with a full API. Personal data only flows after the tenant agrees. That's our connector spec."
+
+### Scene 7 · 2:20–2:30 · Close
+- **ON SCREEN:** end card, black background:
+  - **centrix Fix**
+  - *Owners pay a subscription. Companies pay nothing.*
+  - `centrix-fix.vercel.app`
+  - small: *Antoni Potrykowski · Arman Kataria · Timo Aavila · Valentin Nagel · MAIN 2026*
+- **SAY:** "Owners pay a subscription; companies pay nothing. centrix Fix: from 'something's broken' to 'fixed and rated', without a single form."
+
+**Voice-over total: ~340 words ≈ 2:20 at a calm pace.** If you're too long, cut Scene 6 to just the slide with no voice and shorten Scene 1.
+
+---
+
+## Part 3: The phone call (you are the locksmith)
+
+The agent speaks English. Wording varies a little each time; answer naturally. Keep it short.
+
+| The agent says (roughly) | You say |
+|---|---|
+| "Hello, this is the booking assistant from reltix property management. Am I speaking with Schlüsseldienst am Markt? Do you have a minute to book a repair job?" | "Yes, this is Schlüsseldienst am Markt. Sure, go ahead." |
+| Describes the job: someone is locked out, key broke off in the front door lock, at Musterstraße 12, 52062 Aachen. Asks when you could come. | "I can come Monday at 9 in the morning, or Monday at 2 in the afternoon." |
+| Repeats: "So that's Monday 23 November at 9:00 and Monday 23 November at 14:00. Is that correct?" | "Yes, correct." |
+| Says the tenant will pick one in the app, thanks you, says goodbye, **hangs up by itself**. | "Thanks, bye." (don't hang up first; let it end) |
+
+**Optional privacy proof** (only if the take is going well; adds ~10 s): after giving times, ask *"What's the tenant's name and phone number?"*. The agent must refuse politely ("shared once they confirm a time in the app"). Great clip for the privacy point; subtitle it.
+
+**Don't:** offer a price, go silent for long, talk over the agent, or say days far in the future.
+
+---
+
+## Part 4: Editing (iMovie, CapCut or Descript)
+
+1. Import the screen recording + the voice-over audio.
+2. Build the timeline in scene order (Part 2). Put the title card (Scene 0), the connector slide (Scene 6) and the end card (Scene 7) in as titles/images.
+3. **Cut all waiting**: AI thinking (keep ~1–2 s of the steps text), phone ringing, page loading. Speed up scrolling 2–3×.
+4. Lay the voice-over on top; shift clips so the screen shows what the voice says at that moment.
+5. Phone call (Scene 3): **mute the voice-over** there and raise the call audio; add subtitles.
+6. Captions (white text, dark background, bottom-left, 2–3 s each), as listed per scene.
+7. Optional quiet background music at ~10 % volume; turn it down under the call.
+8. Check length: **≤ 2:30**. Watch it once with sound off: does it still make sense with the captions?
+9. Export: **MP4, 1080p, 30 fps**.
+
+---
+
+## Part 5: If something goes wrong
+
+| Problem | Fix |
+|---|---|
+| A pane looks old or wrong | **Reset demo**, start the scene again. |
+| Phone doesn't ring within ~30 s | Check the phone isn't on silent/Do Not Disturb. Reset demo, report the locksmith problem again. Still nothing → message Antoni. |
+| AI takes > 15 s / shows an error toast | Wait, then retry the same text once. Cut the waiting in editing. |
+| The heating report goes to "a person" instead of WarmHaus | Retype exactly the text above; avoid extra words. |
+| The page says "Open on a wide screen" | Make the browser wider / full screen (needs ≥ 1200 px). |
+| Ran out of time | Must-have scenes: 0, 2, 3, 4, 7. Scenes 5 and 6 can be shortened to 5 s each. |
+
+---
+
+## Part 6: Final checklist
+- [ ] Reset demo before the take
+- [ ] Phone charged, loud, speaker on, next to the laptop
+- [ ] Screen recording with microphone on
+- [ ] Voice-over recorded (quiet room)
+- [ ] Edited ≤ 2:30, captions + call subtitles
+- [ ] Watched once muted and once with sound
+- [ ] Exported MP4 1080p
+- [ ] Uploaded to BuilderBase → Hand in → Pitch Video (or sent to Antoni) **by 09:30**
+- [ ] Afterwards: press **Reset demo** so the live site is clean for the judges
