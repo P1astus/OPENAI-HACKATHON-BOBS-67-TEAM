@@ -15,6 +15,7 @@ vi.mock("@/lib/agent/triage", async (orig) => {
 });
 
 const flow = await import("@/lib/flow");
+const { builtinSeed } = await import("@/lib/seed");
 const store = await import("@/lib/store");
 
 const heating = { trade: "heating", urgency: "urgent", confidence: 0.93, summary: "All radiators cold.", source: "model" } as const;
@@ -62,6 +63,21 @@ describe("demo 1: heater → partner → book → done → wallet → forward �
     expect(company_rating.label).toBe("good");
     await expect(flow.rateTicket(t.id, 9)).rejects.toMatchObject({ status: 409 });
   });
+});
+
+it("completes WarmHaus's past seeded appointment and pays it from the owner's wallet", async () => {
+  const now = Date.parse("2026-11-23T15:00:00Z"); // Monday in Berlin
+  const seed = builtinSeed(now);
+  const job = seed.tickets.find(({ id }) => id === "t_knock");
+  expect(job).toMatchObject({ status: "scheduled", company_id: "c_warmhaus", appointment_at: "2026-11-20T09:00:00.000Z" });
+  expect(Date.parse(job!.appointment_at!)).toBeLessThan(now);
+  expect(seed.companies.find(({ id }) => id === "c_warmhaus")?.calendar_slots).not.toContain(job!.appointment_at);
+  await store.mutate((state) => Object.assign(state, seed));
+
+  const { ticket, invoice } = await flow.completeTicket("t_knock", 95);
+  expect(ticket).toMatchObject({ status: "paid", invoice_id: invoice.id });
+  expect(invoice).toMatchObject({ payer: "owner", status: "paid", amount_eur: 95 });
+  expect(ticket.events.map(({ type }) => type)).toContain("paid_from_wallet");
 });
 
 describe("demo 2: non-partner locksmith → (simulated) call → 5th review → potential partner", () => {

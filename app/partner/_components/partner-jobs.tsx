@@ -20,8 +20,8 @@ import type { Person, Property, Ticket, Unit } from "@/types";
 const activeStatuses: Ticket["status"][] = ["matched", "awaiting_owner", "scheduled"];
 const doneStatuses: Ticket["status"][] = ["done", "invoiced", "paid"];
 
-function JobCard({ ticket, unit, property, tenant }: {
-  ticket: Ticket; unit?: Unit; property?: Property; tenant?: Person;
+function JobCard({ ticket, unit, property, tenant, pastAppointment }: {
+  ticket: Ticket; unit?: Unit; property?: Property; tenant?: Person; pastAppointment: string | null;
 }) {
   const [accepting, setAccepting] = useState(false);
   const accepted = ticket.events.some(({ type }) => type === "accepted");
@@ -44,7 +44,7 @@ function JobCard({ ticket, unit, property, tenant }: {
   }
 
   return (
-    <article className="shadow-soft flex min-w-0 flex-col gap-4 rounded-[14px] bg-card p-4 sm:p-5">
+    <article className={`shadow-soft flex min-w-0 flex-col gap-4 rounded-[14px] bg-card p-4 sm:p-5 ${pastAppointment ? "outline-2 outline-success/60" : ""}`}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="flex items-center gap-2 text-sm font-medium">
           <Clock3 aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
@@ -74,6 +74,11 @@ function JobCard({ ticket, unit, property, tenant }: {
           : <p className="p-4 text-sm text-muted-foreground">Tenant contact unavailable</p>}
       </div>
       <div className="mt-auto flex flex-wrap items-center gap-2 border-t pt-4">
+        {pastAppointment && (
+          <p className="w-full text-sm text-muted-foreground">
+            Appointment was on <time dateTime={pastAppointment}>{formatDateTime(pastAppointment)}</time>. Finished? Mark it done to send the invoice.
+          </p>
+        )}
         {accepted
           ? <span className="flex min-h-11 items-center gap-2 pr-2 text-sm text-muted-foreground"><Check aria-hidden="true" className="size-4" />Accepted</span>
           : <Button variant="secondary" className="min-h-11" disabled={!scheduled || accepting} onClick={accept}>
@@ -81,7 +86,7 @@ function JobCard({ ticket, unit, property, tenant }: {
               Accept
             </Button>}
         {scheduled
-          ? <InvoiceDialog ticket={ticket} accepting={accepting} />
+          ? <InvoiceDialog ticket={ticket} accepting={accepting} pastDue={pastAppointment !== null} />
           : <span className="text-sm text-muted-foreground">
               {ticket.owner_approval === "rejected" ? "Estimate declined by the owner" : "Accept once the tenant books"}
             </span>}
@@ -107,7 +112,7 @@ function TenantContact({ tenant, consent }: { tenant: Person; consent: Ticket["c
   );
 }
 
-function InvoiceDialog({ ticket, accepting }: { ticket: Ticket; accepting: boolean }) {
+function InvoiceDialog({ ticket, accepting, pastDue }: { ticket: Ticket; accepting: boolean; pastDue: boolean }) {
   const amountId = useId();
   const [open, setOpen] = useState(false);
   const [amount, setAmount] = useState("");
@@ -142,7 +147,14 @@ function InvoiceDialog({ ticket, accepting }: { ticket: Ticket; accepting: boole
 
   return (
     <Dialog open={open} onOpenChange={changeOpen}>
-      <DialogTrigger asChild><Button className="min-h-11" disabled={accepting || sending}>Mark done</Button></DialogTrigger>
+      <DialogTrigger asChild>
+        <Button
+          className={pastDue ? "min-h-11 rounded-full bg-success px-4 text-black hover:bg-success/90" : "min-h-11"}
+          disabled={accepting || sending}
+        >
+          {pastDue ? "Mark as done" : "Mark done"}
+        </Button>
+      </DialogTrigger>
       <DialogContent showCloseButton={false}>
         <DialogHeader>
           <DialogTitle>Mark repair done</DialogTitle>
@@ -178,7 +190,16 @@ export function PartnerJobs({ companyId }: { companyId: string }) {
   const bootstrap = useBootstrap();
   const lookups = bootstrap.data;
   const error = tickets.error ?? bootstrap.error;
-  const jobs = tickets.data?.filter(({ status }) => activeStatuses.includes(status)).sort(appointmentOrder);
+  // Recheck the appointment against the current time whenever the jobs render.
+  // eslint-disable-next-line react-hooks/purity
+  const now = Date.now();
+  const jobs = tickets.data?.filter(({ status }) => activeStatuses.includes(status))
+    .map((ticket) => {
+      const appointment = ticket.appointment_at;
+      const pastAppointment = ticket.status === "scheduled" && appointment && Date.parse(appointment) < now ? appointment : null;
+      return { ticket, pastAppointment };
+    })
+    .sort((a, b) => Number(Boolean(b.pastAppointment)) - Number(Boolean(a.pastAppointment)) || appointmentOrder(a.ticket, b.ticket));
 
   return (
     <section aria-labelledby="jobs-heading" className="space-y-3">
@@ -186,11 +207,11 @@ export function PartnerJobs({ companyId }: { companyId: string }) {
       {error ? <ErrorBlock message={error.message} onRetry={() => void Promise.all([tickets.mutate(), bootstrap.mutate()])} />
         : !jobs || !lookups ? <LoadingBlock />
         : !jobs.length ? <EmptyState icon={<CalendarDays className="size-5" />} title="No active jobs" description="New matches and appointments will appear here." />
-        : <div className="grid gap-4 sm:grid-cols-2">{jobs.map((ticket) => {
+        : <div className="grid gap-4 sm:grid-cols-2">{jobs.map(({ ticket, pastAppointment }) => {
             const unit = lookups.units.find(({ id }) => id === ticket.unit_id);
             const property = lookups.properties.find(({ id }) => id === unit?.property_id);
             const tenant = lookups.people.find(({ id }) => id === ticket.tenant_id);
-            return <JobCard key={ticket.id} {...{ ticket, unit, property, tenant }} />;
+            return <JobCard key={ticket.id} {...{ ticket, unit, property, tenant, pastAppointment }} />;
           })}</div>}
     </section>
   );

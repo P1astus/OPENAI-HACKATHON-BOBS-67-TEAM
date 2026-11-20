@@ -3,7 +3,7 @@ import path from "node:path";
 import type { Company, Invoice, Person, Property, Ticket, Trade, Unit } from "../types";
 import { estimateCost, haversineKm, rankOptions } from "./matching";
 import { seedSchemas, formatZodError } from "./schemas";
-import { addDays, addMinutes, workdaySlots } from "./time";
+import { addDays, addMinutes, berlinTime, workdaySlots } from "./time";
 
 export type State = {
   properties: Property[];
@@ -58,6 +58,8 @@ function refreshCalendars(state: State, now = Date.now()) {
 
 export function builtinSeed(now = Date.now()): State {
   const at = (days: number) => addDays(now, days);
+  const berlinWeekday = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Berlin", weekday: "short" }).format(now);
+  const lastWorkday = berlinWeekday === "Mon" ? -3 : berlinWeekday === "Sun" ? -2 : -1;
 
   const properties: Property[] = [
     { id: "prop_muster", address: "Musterstraße 12", postcode: "52062", city: "Aachen", lat: 50.7753, lng: 6.0839, building_year: 1962, heating: "Gas central heating" },
@@ -106,10 +108,12 @@ export function builtinSeed(now = Date.now()): State {
   type SeedTicket = {
     id: string; unit_id: string; tenant_id: string; claim: string; createdDays: number; summary: string;
     trade: Trade | null; options: string[]; chosen?: string; status: Ticket["status"]; invoice?: Invoice; rating?: number;
+    appointmentAt?: string;
   };
 
   const seedTicket = (s: SeedTicket): Ticket => {
-    const created_at = at(s.createdDays);
+    // On Monday the report and appointment share a date, so leave time to book it.
+    const created_at = s.appointmentAt ? berlinTime(now, s.createdDays, 8) : at(s.createdDays);
     const m = (minutes: number) => addMinutes(created_at, minutes);
     const candidates = rankOptions(s.options.map((cid) => ({
       company: byId[cid], distance_km: haversineKm(property, byId[cid]), est_cost_eur: estimateCost(byId[cid], s.trade),
@@ -141,17 +145,21 @@ export function builtinSeed(now = Date.now()): State {
       t.events.push({ at: m(3), actor: "agent", type: "owner_approval_requested", message: `Estimate €${t.est_cost_eur} is over €300: asked the owner to approve.` });
       return t;
     }
-    t.proposed_slots = s.invoice ? workdaySlots(Date.parse(s.invoice.issued_at), -1, 1) : chosen.calendar_slots.slice(0, 3);
+    t.proposed_slots = s.appointmentAt ? [s.appointmentAt]
+      : s.invoice ? workdaySlots(Date.parse(s.invoice.issued_at), -1, 1)
+      : chosen.calendar_slots.slice(0, 3);
     t.appointment_at = t.proposed_slots[0];
     t.consent = { data_shared: ["name", "phone", "address", "access_notes"], given_at: m(20), channel: "portal" };
     t.events.push(
-      { at: m(3), actor: "agent", type: "slots_proposed", message: "Three appointment times were offered." },
+      { at: m(3), actor: "agent", type: "slots_proposed", message: s.appointmentAt ? "An appointment time was offered." : "Three appointment times were offered." },
       { at: m(20), actor: "tenant", type: "booked", message: "Appointment booked and contact sharing approved." },
     );
+    if (s.appointmentAt || s.invoice) {
+      t.events.push({ at: m(60), actor: "company", type: "accepted", message: s.appointmentAt ? `${chosen.name} confirmed the job.` : "The company confirmed the job." });
+    }
     if (s.invoice) {
       t.invoice_id = s.invoice.id;
       t.events.push(
-        { at: m(60), actor: "company", type: "accepted", message: "The company confirmed the job." },
         { at: s.invoice.issued_at, actor: "company", type: "invoiced", message: "Repair completed and invoice issued to the owner." },
         { at: s.invoice.issued_at, actor: "agent", type: "paid_from_wallet", message: "Paid from Maria Becker's centrix wallet." },
       );
@@ -175,6 +183,13 @@ export function builtinSeed(now = Date.now()): State {
     seedTicket({ id: "t_heater", unit_id: "unit_2l", tenant_id: "p_lena", claim: "The heating is on but every radiator in my flat is cold.", createdDays: -7, summary: "Restore heating to cold radiators throughout the flat.", trade: "heating", status: "paid", options: ["c_warmhaus"], chosen: "c_warmhaus", invoice: invoices[0] }),
     seedTicket({ id: "t_radiator", unit_id: "unit_1r", tenant_id: "p_jonas", claim: "The bedroom radiator valve is stuck closed.", createdDays: -52, summary: "Repair the stuck bedroom radiator valve.", trade: "heating", status: "paid", options: ["c_warmhaus"], chosen: "c_warmhaus", invoice: invoices[1], rating: 9 }),
     seedTicket({ id: "t_drain", unit_id: "unit_2l", tenant_id: "p_lena", claim: "The bathroom sink backs up whenever I run water.", createdDays: -27, summary: "Clear the blocked bathroom sink drain.", trade: "plumbing", status: "invoiced", options: ["c_aquafix", "c_warmhaus"], chosen: "c_aquafix", invoice: invoices[2] }),
+    seedTicket({
+      id: "t_knock", unit_id: "unit_1r", tenant_id: "p_jonas", createdDays: -3,
+      claim: "The living room radiator makes a loud knocking noise when the heating starts.",
+      summary: "Radiator knocking in the living room; bleed and check the valve.",
+      trade: "heating", status: "scheduled", options: ["c_warmhaus", "c_thermoplus"], chosen: "c_warmhaus",
+      appointmentAt: berlinTime(now, lastWorkday, 10),
+    }),
   ];
 
   // The boiler pump job is a bigger one than the typical-hours estimate, so it needs owner approval.
