@@ -1,12 +1,13 @@
 "use client";
 
 import { CalendarDays, CircleCheck, CircleAlert, Wallet } from "lucide-react";
+import { useRef, useState } from "react";
 import { EmptyState, ErrorBlock, LoadingBlock, PageHeader } from "@/components/index";
 import { Badge } from "@/components/ui/badge";
 import { useBootstrap, useCompanies, useTickets, useViewer } from "@/lib/hooks";
 import type { TicketStatus } from "@/types";
 import { OwnerInvoices } from "./owner-invoices";
-import { OwnerTicket } from "./owner-ticket";
+import { OwnerTicket, OwnerTicketSheet } from "./owner-ticket";
 
 const columns: { key: string; title: string; statuses: TicketStatus[]; icon: typeof CircleAlert; empty: string; tone: string }[] = [
   { key: "urgent", title: "Urgent", statuses: ["emergency", "needs_human", "awaiting_owner"], icon: CircleAlert, empty: "Nothing urgent", tone: "text-muted-foreground" },
@@ -19,9 +20,12 @@ export function OwnerDashboard() {
   const bootstrap = useBootstrap();
   const tickets = useTickets({ owner_id: viewer });
   const companies = useCompanies();
+  const [openTicketId, setOpenTicketId] = useState<string | null>(null);
+  const lastOpenedTicket = useRef<string | null>(null);
   const companyList = companies.data;
   const owner = bootstrap.data?.people.find(({ id, role }) => id === viewer && role === "owner");
   const units = bootstrap.data?.units.filter(({ owner_id }) => owner_id === viewer);
+  const openTicket = tickets.data?.find(({ id }) => id === openTicketId);
   const groups = columns.map((column) => {
     const matches = tickets.data?.filter(({ status }) => column.statuses.includes(status));
     return { ...column, tickets: column.key === "done" ? matches?.slice(0, 10) : matches };
@@ -66,7 +70,11 @@ export function OwnerDashboard() {
                         : items.map((ticket) => (
                             <OwnerTicket key={ticket.id} ticket={ticket}
                               company={companyList.find(({ id }) => id === ticket.company_id)}
-                              unit={units.find(({ id }) => id === ticket.unit_id)} />
+                              unit={units.find(({ id }) => id === ticket.unit_id)}
+                              onOpen={() => {
+                                lastOpenedTicket.current = ticket.id;
+                                setOpenTicketId(ticket.id);
+                              }} />
                           ))}
                     </section>
                   ))}
@@ -75,6 +83,10 @@ export function OwnerDashboard() {
               <OwnerInvoices ownerId={viewer} units={units} companies={companyList} people={bootstrap.data?.people}
                 lookupError={bootstrap.error ?? companies.error}
                 retryLookups={() => Promise.all([bootstrap.mutate(), companies.mutate()])} />
+              <OwnerTicketSheet ticketId={openTicket?.id ?? null}
+                unit={units?.find(({ id }) => id === openTicket?.unit_id)}
+                onClose={() => setOpenTicketId(null)}
+                restoreFocus={() => document.getElementById(`owner-repair-${lastOpenedTicket.current}`)?.focus()} />
             </>
           )}
       </main>
