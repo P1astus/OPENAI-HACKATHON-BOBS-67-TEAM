@@ -107,6 +107,8 @@ reltix judging (this decides the track prize):
 - [docs/system-design.md](docs/system-design.md): the agreed design (flow, matching formula, rating and promotion rules, business model, demo path). Change it only after the team agrees, and update it when a decision changes.
 - [docs/ui-plan.md](docs/ui-plan.md): the UI spec for the four views (tenant, partner, owner, admin), Apple-style look, stack (Next.js + Tailwind + shadcn/ui, v0 + Vercel) and build order.
 - [docs/task-split.md](docs/task-split.md): who builds what, file ownership and order of work.
+- [docs/contract.md](docs/contract.md): data shapes and API every area builds against (owner: armaNKataria).
+- [docs/prompts/](docs/prompts/): detailed task prompt per person.
 - No app code yet. Next step: choose the stack, set it up in one commit, then everyone branches from it.
 
 The old starter app (agent loop, dashboard, n8n workflow, `/pivot` and `/preflight` skills) and its project setup were deleted. They are still in git history (commits `4652e83` and `1fdf803`) if a piece is ever useful, but we do not build on them.
