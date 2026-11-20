@@ -75,7 +75,7 @@ export function filterInvoices(s: State, f: { owner_id?: string; tenant_id?: str
 // ---------- matching + scheduling ----------
 type PendingCall = { ticket_id: string; company_id: string } | null;
 
-/** Assign a company, then owner approval or slots. Returns a pending voice call for non-partners. */
+/** Assign a company, then owner approval or slots. Returns a pending voice call for companies that book by phone. */
 function assignCompany(s: State, t: Ticket, company: Company, cost: number, actor: "agent" | "admin"): PendingCall {
   t.company_id = company.id;
   t.partner_type = company.is_partner ? "partner" : "non_partner";
@@ -96,7 +96,9 @@ function assignCompany(s: State, t: Ticket, company: Company, cost: number, acto
 }
 
 function proposeSlots(s: State, t: Ticket, company: Company): PendingCall {
-  if (!company.is_partner) {
+  // Calendar partners: times come from their calendar. Everyone else (phone-booking partners and
+  // non-partners) is called by the voice agent, which posts the agreed times back.
+  if (!company.is_partner || company.booking !== "calendar") {
     event(t, "agent", "calling_company", `Calling ${company.name} to agree on a time.`);
     return { ticket_id: t.id, company_id: company.id };
   }

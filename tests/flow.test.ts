@@ -153,6 +153,17 @@ describe("demo 2: non-partner locksmith → (simulated) call → 5th review → 
   });
 });
 
+describe("phone-booking partner", () => {
+  it("is called by the voice agent instead of offering calendar slots", async () => {
+    modelTriage.value = { trade: "windows_doors", urgency: "normal", confidence: 0.92, summary: "Balcony door does not close.", source: "model" };
+    const t = await flow.createTicket({ tenant_id: "p_lena", unit_id: "unit_2l", claim: "The balcony door doesn't close properly anymore." });
+    expect(t.company_id).toBe("c_hauswerk");
+    expect(t.partner_type).toBe("partner");
+    expect(t.events.map((e) => e.type)).toContain("calling_company");
+    expect(t.proposed_slots.length).toBeGreaterThan(0); // simulated call without ElevenLabs
+  });
+});
+
 describe("guards", () => {
   it("gas → emergency, no booking", async () => {
     const t = await flow.createTicket({ tenant_id: "p_lena", unit_id: "unit_2l", claim: "I smell gas in the hallway" });

@@ -44,7 +44,7 @@ async function readSeedFiles(): Promise<State> {
 function refreshCalendars(state: State, now = Date.now()) {
   const booked = new Set(state.tickets.map((t) => `${t.company_id}|${t.appointment_at}`));
   for (const company of state.companies) {
-    if (!company.is_partner) continue;
+    if (!company.is_partner || company.booking !== "calendar") continue;
     const future = company.calendar_slots.filter((s) => Date.parse(s) > now);
     if (future.length >= 6) continue;
     const fresh = workdaySlots(now, 1, 3).filter((s) => !booked.has(`${company.id}|${s}`));
@@ -81,7 +81,7 @@ export function builtinSeed(now = Date.now()): State {
     ...c,
     phone: `+49 241 0000 13${index}`,
     email: `${c.id.slice(2)}@example.com`,
-    calendar_slots: c.is_partner ? workdaySlots(now, 1, 3) : [],
+    calendar_slots: c.is_partner && c.booking === "calendar" ? workdaySlots(now, 1, 3) : [],
     reviews: ratings.map((rating, i) => ({ ticket_id: `t_history_${c.id.slice(2)}_${i + 1}`, rating, created_at: at(-12 - i * 8) })),
   });
 
@@ -94,7 +94,7 @@ export function builtinSeed(now = Date.now()): State {
     company({ id: "c_schnellfix", name: "SchnellFix Haustechnik", is_partner: false, trades: ["heating", "plumbing"], lat: 50.7969, lng: 6.0724, service_radius_km: 20, hourly_rate_eur: 70, callout_fee_eur: 30, booking: "phone", status: "blacklisted" }, [2, 3, 1, 4, 2, 3], 6),
     // Demo 2: a non-partner locksmith with four good reviews. The fifth (from the tenant) makes it a potential partner.
     company({ id: "c_schluessel", name: "Schlüsseldienst am Markt", is_partner: false, trades: ["locksmith", "windows_doors"], lat: 50.7774, lng: 6.0834, service_radius_km: 13, hourly_rate_eur: 82, callout_fee_eur: 38, booking: "phone", status: "active" }, [8, 9, 8, 9], 7),
-    company({ id: "c_hauswerk", name: "Hauswerk Aachen", is_partner: false, trades: ["general", "windows_doors", "plumbing", "electrical"], lat: 50.7659, lng: 6.0695, service_radius_km: 16, hourly_rate_eur: 69, callout_fee_eur: 40, booking: "phone", status: "active" }, [6, 5, 7, 4, 5, 6], 8),
+    company({ id: "c_hauswerk", name: "Hauswerk Aachen", is_partner: true, trades: ["general", "windows_doors", "plumbing", "electrical"], lat: 50.7659, lng: 6.0695, service_radius_km: 16, hourly_rate_eur: 69, callout_fee_eur: 40, booking: "phone", status: "active" }, [6, 5, 7, 4, 5, 6], 8),
   ];
   const byId = Object.fromEntries(companies.map((c) => [c.id, c]));
   const property = properties[0];
