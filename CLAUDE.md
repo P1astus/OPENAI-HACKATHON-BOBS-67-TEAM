@@ -2,7 +2,9 @@
 
 Context for Claude Code and teammates. Read fully before changing anything.
 
-**Status:** the challenge is revealed Fri Nov 20, 11:00–13:00. Until then there is no agreed product and no app code: this repo holds only the team docs. We decide what to build, and with which tools, together after the reveal (section 4).
+**Status (Fri Nov 20, afternoon):** the challenge is revealed: we're in the **reltix track, "Plug a Partner into centrix"** (section 3a). Our product is decided: **repair matching**. Something breaks in an apartment, we find the best company to fix it, book it with the tenant, bill the owner and rate the company afterwards. The full design is in [docs/system-design.md](docs/system-design.md); read it before building. The tech stack is not chosen yet and there is no app code.
+
+Repo: https://github.com/P1astus/OPENAI-HACKATHON-BOBS-67-TEAM
 
 ## 1. Event & schedule: MAIN Summit & AI Hackathon 2026 (Maastricht, "Where every field meets AI")
 Largest student-led AI hackathon in the Netherlands.
@@ -30,6 +32,31 @@ Jury = OpenAI engineers + VCs + enterprise executives. Judging criteria publishe
 4. **Business value in numbers** that come from deterministic code, never from model text (hours saved, EUR saved, confidence), plus risks and honest limits.
 5. **Human in control and grounded answers**: ask for confirmation when unsure; say "I can't tell" rather than guess.
 6. **A specific user and workflow**, not "AI for everyone".
+
+## 3a. Our track: reltix "Plug a Partner into centrix"
+reltix manages properties and builds **centrix**, the platform where its property managers and AI agents work. The task: pick one service partner and plug it into centrix, so that a moment in a property's life ends in a finished result (signed contract, completed repair) with zero forms for the resident.
+
+Our solution has to:
+1. **Detect the moment**: when and for whom the service is needed.
+2. **Hand over context**: prefill what the partner needs from centrix.
+3. **Hold the conversation** in a fitting channel. At least one channel must reach the resident directly.
+4. **Close the loop**: keep everyone updated, then link the result (appointment, invoice) back to the property.
+
+What we hand in:
+- **A working demo of one flow:** event → resident reached → partner gets the job → result shows on the unit.
+- **A partner connector spec:** what any partner must provide to plug in.
+
+There is no reltix data or API. We make our own JSON data and state our assumptions.
+
+reltix judging (this decides the track prize):
+
+| Criterion | Weight |
+|---|---|
+| Demo works end to end | 30% |
+| User experience for resident, partner and property manager | 25% |
+| Feasibility and realism (data, consent, privacy, partner side) | 20% |
+| Connector spec generic enough for the next partner | 15% |
+| Clear reason for this partner and this moment | 10% |
 
 ## 4. How we work
 **Kickoff (Fri 13:30, first 30–60 min, before any code).** Write down in one place:
@@ -72,9 +99,12 @@ Jury = OpenAI engineers + VCs + enterprise executives. Judging criteria publishe
 - Validate anything external (model output, request bodies) before using it.
 - Numbers shown to users (money, hours, scores) come from deterministic code, not model text.
 - Every external call needs a timeout and a fallback so one failing service cannot crash the demo.
-- Keep it simple and stateless unless the product needs more. No database or login unless the challenge requires it.
+- Keep it simple. Our company list, apartments and reviews live in seed JSON files (or one small store if serverless state gets lost). No real database server and no login.
 - Before every merge, the project's checks must pass (type check, lint, build and any tests we set up). Write the exact commands here once the stack is chosen.
 - If we use a framework that changed recently (for example Next.js), check its bundled or official docs before using unfamiliar APIs.
 
 ## 7. Current code
-There is none. The old starter app (agent loop, dashboard, n8n workflow, `/pivot` and `/preflight` skills) and its project setup were deleted. They are still in git history (commits `4652e83` and `1fdf803`) if a piece is ever useful, but we do not build on them.
+- [docs/system-design.md](docs/system-design.md): the agreed design (flow, matching formula, rating and promotion rules, business model, demo path). Change it only after the team agrees, and update it when a decision changes.
+- No app code yet. Next step: choose the stack, set it up in one commit, then everyone branches from it.
+
+The old starter app (agent loop, dashboard, n8n workflow, `/pivot` and `/preflight` skills) and its project setup were deleted. They are still in git history (commits `4652e83` and `1fdf803`) if a piece is ever useful, but we do not build on them.
