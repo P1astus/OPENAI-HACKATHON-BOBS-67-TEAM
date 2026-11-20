@@ -21,7 +21,7 @@ Largest student-led AI hackathon in the Netherlands.
 | Sat 15:00+ | **Grand Finale** live stage pitches (projector at Sint Janskerk) |
 
 ## 2. Team
-Antoni Potrykowski, Marlene Heydenreich, Timo Aavila, Diana Piskareva. GitHub: P1astus (Antoni, repo owner), armaNKataria, Tropimatico, valoi2; who does what is in [docs/task-split.md](docs/task-split.md). Four equal members, no team lead. Decisions are made together; roles are agreed at kickoff (section 4) and can change.
+Antoni Potrykowski, Arman Kataria, Timo Aavila, Valentin Nagel. GitHub: P1astus (Antoni Potrykowski, repo owner), armaNKataria (Arman Kataria), Tropimatico (Timo Aavila), valoi2 (Valentin Nagel); who does what is in [docs/task-split.md](docs/task-split.md). Four equal members, no team lead. Decisions are made together; roles are agreed at kickoff (section 4) and can change.
 
 ## 3. Sponsors & what the jury rewards
 Credits: **OpenAI** (models, tool calling, structured outputs), **ElevenLabs** (voice), **n8n Cloud Pro** (real actions via webhooks). Using all three is optional; use each only where it makes the product better.
