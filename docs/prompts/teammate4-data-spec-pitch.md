@@ -34,7 +34,7 @@ Ask armaNKataria to confirm the computed labels with the rating tests.
 
 ## Part 2: connector spec (`docs/connector-spec.md`, 15% of the score)
 Audience: a developer at a new partner company and the reltix judges. Goal: **any service partner can plug into centrix the same way, without us redesigning anything.** Write it from the real routes in `docs/contract.md`; ask armaNKataria when unsure. Sections:
-1. **What a partner gets / gives**, in plain words (jobs without marketing cost; we take 10% per job).
+1. **What a partner gets / gives**, in plain words (steady jobs without marketing cost, booking from their calendar, jobs arrive with context filled in; they pay us nothing and we take no commission).
 2. **Partner manifest** (one JSON document a partner registers): id, legal name, trades (our enum), service area (centre + radius or postcode list), pricing (hourly, callout, optional fixed prices), booking method (`calendar` API / `website` / `phone`), required job fields, consent scopes it needs (name, phone, address, access notes, photos), support contact, SLA (response time). Give a full example for WarmHaus.
 3. **Availability**: `GET {partner}/availability?trade=&from=&to=&lat=&lng=` → slots. Say what happens for phone-only partners (our voice agent).
 4. **Orders/jobs**: `POST {partner}/jobs` with the prefilled context we send (problem summary, address, access notes, photos, appointment, contact only after consent) → `{ job_id }`. Show the exact JSON.
@@ -53,7 +53,7 @@ Live stage pitch, about 3 minutes plus questions. Structure:
 3. **Live demo** (90 s): write the click-by-click script with who does what. Antoni drives; armaNKataria and Teammate 3 are on standby for the call. Heater: tenant reports → match with visible formula → tenant picks a time → partner accepts and marks done → owner forwards or pays → tenant rates 9 → score updates. Then the short second case: the non-partner gets its 5th good review and appears under "Potential partners".
 4. **Why this partner and this moment** (10% of the score): the landlord must fix it, it's urgent, and today it costs the property manager the most calls.
 5. **Connector spec** in one slide: manifest → availability → job → status → invoice → result on the unit.
-6. **Business model:** owner subscription + 10% per partner job; non-partners become partners.
+6. **Business model:** home owners pay a subscription, and that's all. No commission from companies, which is why good local companies happily join as partners. Price shown as `[OWNER SUBSCRIPTION PRICE]` until the team agrees on it.
 7. **Honest limits and "what breaks first?"**: the AI misreads vague reports (so they go to a person), the voice call on bad lines, seeded search instead of a real places API.
 8. **What's next:** real places API, German voice, photo triage, owner monthly statements.
 - Prepare answers to 6 likely jury questions (privacy, who pays, why not just MyHammer-style marketplaces, liability, scaling to thousands of units, what if no company answers).

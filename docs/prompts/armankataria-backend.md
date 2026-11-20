@@ -51,9 +51,9 @@ Input: the tenant's `claim`, plus unit and property context. Output: the `Triage
 ## PR 5: the flow (`POST /api/tickets` and the transition routes)
 - `POST /api/tickets`: validate the body → create the ticket (`reported`) → triage → if `needs_human`, status `needs_human` or `emergency` and stop → else match → take the top candidate → `matched` → if `est_cost_eur > 300`, `owner_approval "pending"`, status `awaiting_owner` → else fill slots. Partners: the next 3 `calendar_slots` after now + 2 h. Non-partners: start the voice call (see below) and return with `proposed_slots: []` plus an event "Calling <company> to agree on a time".
 - Implement every transition route from the contract with state checks (409 on a wrong state) and an event appended each time.
-- `complete`: create the invoice (`payer "owner"`, `due_at` = +14 days, commission 10% if partner else 0) → `invoiced`.
+- `complete`: create the invoice (`payer "owner"`, `due_at` = +14 days; no commission, the amount is the company's price) → `invoiced`.
 - `rate`: store the rating and add a `Review` to the company → recompute `companyRating` → `applyBlacklist`. Return the new rating so the screen can show it change live.
-- `GET /api/companies/:id/balance`: computed from invoices (6 months, gross / commission / net / jobs).
+- `GET /api/companies/:id/balance`: computed from invoices (6 months: earned / paid / outstanding / jobs).
 
 ## PR 6: voice hook (with Teammate 3)
 - `lib/agent/voice.ts`: `startCompanyCall(ticket, company)`. If `ELEVENLABS_AGENT_ID` is set, start an outbound call through the ElevenLabs API (Teammate 3 will give you the exact endpoint and dynamic variable names from their `docs/voice-agent.md`). Pass only the problem summary, street + postcode, preferred days and a callback ticket id. **No tenant name or phone before consent.** Use a 10 s timeout. On failure, set `needs_human` with reason "Couldn't reach the company".

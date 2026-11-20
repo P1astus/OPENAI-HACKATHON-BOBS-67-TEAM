@@ -37,7 +37,7 @@ All four views share one slick, minimal look in the spirit of Apple's apps (our 
 - **Today / upcoming jobs**: date, address, problem description, tenant contact card, "Accept" / "Propose other time".
 - **Done jobs**: list, "Mark done + upload invoice" on open ones.
 - **Rating meter**: big score with Good / Neutral / Bad label, number of reviews, last 5 reviews.
-- **Monthly balance**: total earned this month, our 10% commission, net payout; bar chart of last 6 months.
+- **Monthly balance**: earned this month, how much is already paid and how much is still outstanding, number of jobs; bar chart of the last 6 months. (We take no commission, so earned = what they invoiced.)
 - **Support**: contact the property manager.
 
 ## 3. Home owner (desktop, PMS / hotel-style dashboard)

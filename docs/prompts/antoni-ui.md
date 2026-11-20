@@ -61,7 +61,7 @@ Screen specs (expand from `docs/ui-plan.md` sections 1–4):
 
 **`/partner`: desktop, works on phone.**
 - Title = company name, RatingMeter large in the header.
-- Tabs: Jobs (upcoming, sorted by date: address, problem summary, ContactCard, "Accept"; scheduled ones get "Mark done" which opens a dialog with an amount field, then "Send invoice") · Done · Balance (6-month bar chart with the shadcn chart component from `/api/companies/:id/balance`: gross, our 10%, net; this month's totals as three numbers on top) · Reviews (last reviews with rating and date) · Support.
+- Tabs: Jobs (upcoming, sorted by date: address, problem summary, ContactCard, "Accept"; scheduled ones get "Mark done" which opens a dialog with an amount field, then "Send invoice") · Done · Balance (6-month bar chart with the shadcn chart component from `/api/companies/:id/balance`: earned, paid, outstanding; this month's totals as three numbers on top. We take no commission, so never show a fee or cut) · Reviews (last reviews with rating and date) · Support.
 
 **`/owner`: desktop, hotel front desk style.**
 - Three columns: Urgent (emergency, needs_human, awaiting_owner) · Upcoming (matched, scheduled) · Paid. Cards: unit label, problem summary, company, cost, StatusPill.
@@ -83,7 +83,7 @@ Screen specs (expand from `docs/ui-plan.md` sections 1–4):
 - Every screen has loading, empty and error states. A failed request shows a toast with the API's message. The screen never goes blank.
 - Every interactive element is a real `<button>` or `<a>` with a visible focus state. Contrast at least 4.5:1, touch targets 44 px.
 - Tenant screen checked at 390 px wide, no horizontal scroll anywhere.
-- Never show a number you computed in the browser: scores, totals, overdue and commission all come from the API.
+- Never show a number you computed in the browser: scores, totals and overdue all come from the API.
 - Before each PR: `npm run typecheck && npm run lint && npm run build` all pass. Open the Vercel preview link and click through the heater story.
 
 ## Milestones

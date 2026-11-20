@@ -8,6 +8,7 @@ Product rules live in [system-design.md](./system-design.md). This file only say
 - IDs are strings with a prefix: `prop_`, `unit_`, `p_` (person), `c_` (company), `t_` (ticket), `inv_`.
 - Dates are ISO 8601 strings in UTC (`2026-11-21T09:00:00Z`). Money is a number in euros with 2 decimals (`184.50`).
 - Every API response is JSON. Errors: HTTP 4xx/5xx with `{ "error": "human readable message" }`.
+- We take no commission: invoices go from the company to the owner (or tenant) at the company's price. Revenue is the owners' subscription only, which isn't modelled in the demo data.
 - All numbers shown on screen (scores, money, counts) come from the API, computed in code. Screens never compute them.
 
 ## Types (`types.ts`)
@@ -111,7 +112,6 @@ export type Ticket = {
 export type Invoice = {
   id: string; ticket_id: string; company_id: string; unit_id: string; property_id: string;
   amount_eur: number;
-  commission_eur: number;    // 10% for partners, 0 for non-partners
   issued_at: string; due_at: string;                     // due = issued + 14 days
   payer: "owner" | "tenant";
   forwarded_at: string | null;
@@ -155,7 +155,7 @@ Every transition appends a `TicketEvent`. A request in the wrong state returns 4
 | `POST /api/invoices/:id/forward` | owner | – | `Invoice` (payer → tenant) |
 | `POST /api/invoices/:id/pay` | owner / tenant | – | `Invoice` (paid) |
 | `GET /api/companies` | admin, partner | – | `(Company & { rating: CompanyRating })[]` |
-| `GET /api/companies/:id/balance` | partner | – | `{ months: { month, gross_eur, commission_eur, net_eur, jobs }[] }` last 6 months |
+| `GET /api/companies/:id/balance` | partner | – | `{ months: { month, earned_eur, paid_eur, outstanding_eur, jobs }[] }` last 6 months |
 | `POST /api/agent/voice-result` | ElevenLabs webhook | `{ ticket_id, company_id, slots: string[], summary }` + header `x-webhook-secret` | `{ ok: true }` |
 | `POST /api/reset` | demo operator | – | reseeds all data from `data/*.json` |
 

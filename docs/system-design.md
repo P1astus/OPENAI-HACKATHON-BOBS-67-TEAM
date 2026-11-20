@@ -14,9 +14,9 @@ When something breaks in an apartment, we find the best company to fix it (a par
 | **Repair company** | Partners: jobs come in through their calendar. Non-partners: an AI phone call. |
 
 ## 3. Business model
-- **Home owners pay a subscription** for the service.
-- **Partners pay us a percentage of each job.** Suggested starting point: **10% of the invoice**. That's in line with what craft marketplaces usually charge, and low enough that a partner still earns more than finding the customer themselves.
-- **Non-partners pay nothing.** They never agreed to a commission, so we can't take one. They get free jobs from us, which is how we later convince the good ones to become partners.
+- **Only home owners pay: a subscription** for the service. That is our whole revenue.
+- **No commission from anyone.** Partners and non-partners pay us nothing, and we take no cut of their invoices. The company bills the job at its normal price.
+- **Why partners still join:** steady jobs with no marketing cost, booking straight from their calendar, and every job comes with the context they need already filled in.
 
 ## 4. Two kinds of companies
 - **Partners**: companies we have a deal with. They are in our database and we can see their calendar, so booking is instant.
