@@ -1,35 +1,49 @@
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Home, LayoutDashboard, Smartphone, Wrench } from "lucide-react";
 import Link from "next/link";
+import { PageHeader } from "@/components/index";
+import { ResetDemoButton } from "./admin/_components/reset-demo-button";
 
 const views = [
-  { name: "Tenant", href: "/tenant?as=p_lena" },
-  { name: "Partner", href: "/partner?as=c_warmhaus" },
-  { name: "Owner", href: "/owner?as=p_maria" },
-  { name: "Admin", href: "/admin" },
+  { name: "Tenant", description: "Lena Hoffmann · reports a problem", href: "/tenant?as=p_lena", icon: Smartphone },
+  { name: "Partner", description: "WarmHaus Heizungstechnik · gets the job", href: "/partner?as=c_warmhaus", icon: Wrench },
+  { name: "Owner", description: "Maria Becker · approves and pays", href: "/owner?as=p_maria", icon: Home },
+  { name: "Operations", description: "reltix property manager", href: "/admin", icon: LayoutDashboard },
 ];
 
-export default function Home() {
+export default function HomePage() {
   return (
-    <main className="fade-in mx-auto w-full max-w-2xl px-6 py-16 sm:py-24">
-      <h1 className="large-title leading-tight">centrix Fix</h1>
-      <p className="mt-2 text-muted-foreground">Repair matching for centrix</p>
-
-      <nav aria-label="Demo views" className="mt-8">
-        <ul className="grid gap-3 sm:grid-cols-2">
-          {views.map(({ name, href }) => (
-            <li key={href}>
-              <Link
-                href={href}
-                prefetch={false}
-                className="shadow-soft flex items-center justify-between gap-4 rounded-xl border bg-card p-5 font-medium text-card-foreground transition-colors hover:border-primary/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-              >
-                {name}
-                <ChevronRight aria-hidden="true" className="size-4 text-primary" />
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </nav>
-    </main>
+    <>
+      <PageHeader
+        title="centrix Fix"
+        subtitle="Something breaks. We find the best company, book it with the tenant, bill the owner."
+      />
+      <main className="fade-in mx-auto w-full max-w-5xl px-4 pt-2 pb-12 sm:px-6">
+        <nav aria-label="Demo views">
+          <ul className="grid gap-4 sm:grid-cols-2">
+            {views.map(({ name, description, href, icon: Icon }) => (
+              <li key={href} className="min-w-0">
+                <Link
+                  href={href}
+                  prefetch={false}
+                  className="group shadow-soft flex h-full min-h-32 items-center gap-4 rounded-[14px] border border-transparent bg-card px-5 py-6 transition-colors hover:border-primary/35 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:min-h-40 sm:px-7"
+                >
+                  <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+                    <Icon aria-hidden="true" className="size-6" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-xl font-semibold tracking-tight">{name}</span>
+                    <span className="mt-1 block text-sm leading-relaxed text-muted-foreground">{description}</span>
+                  </span>
+                  <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-primary transition-transform group-hover:translate-x-0.5" />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+        <div className="mt-5">
+          <ResetDemoButton />
+        </div>
+      </main>
+    </>
   );
 }
