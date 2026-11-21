@@ -1,6 +1,6 @@
 # Pitch video (final, 2:28)
 
-The hand-in video for BuilderBase → Hand in → **Pitch Video** (limit 2:30). Final file: `centrix-fix-pitch.mp4`, 1080p, 2:27.8. It is not in the repo (size); the team has it.
+The hand-in video for BuilderBase → Hand in → **Pitch Video** (limit 2:30). Final file: `centrix-fix-pitch.mp4`, 1080p, 2:27.7. It is not in the repo (size); the team has it.
 
 ## What the video shows
 
@@ -22,7 +22,7 @@ The hand-in video for BuilderBase → Hand in → **Pitch Video** (limit 2:30). 
 1. "When something breaks in a rented flat, the tenant writes one sentence. centrix Fix finds the right repair company, books it, pays it and gets it rated."
 2. "Today a broken heater means calls, emails and chasing. We put the tenant, the repair company, the owner and reltix on one live screen."
 3. "Lena types one sentence. Our AI reads it, then a formula, not the AI, picks the company: reviews, price and distance, partners first. One tap books it, and only then does WarmHaus see her contact."
-4. "Not every partner runs an online calendar. For partners who work by phone, our voice agent calls them and books the job itself."
+4. "Not every partner runs an online calendar. For partners who work by phone, our voice agent calls them and collects their free times."
 5. "It never shares Lena's details before she confirms. The times it agreed land straight in Lena's app. One tap: booked."
 6. a) "Job done: one click, and it's paid from the owner's centrix wallet, with no commission." b) "Lena rates it, and the company's score updates."
 7. "And when our AI can't tell what's wrong, it says so instead of guessing. The owner calls Lena, types one sentence, and the system takes over again: re-reads it, matches the right company, offers Lena times."
