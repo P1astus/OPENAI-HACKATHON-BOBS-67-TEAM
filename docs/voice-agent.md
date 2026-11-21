@@ -2,11 +2,11 @@
 
 ## 1. What it does and when it runs
 
-The centrix Fix voice agent calls a repair company to collect appointment times and sends those times to the app for the tenant to choose. It runs when no existing centrix partner fits and the app selects a non-partner, after owner approval if the estimate exceeds €300.
+The centrix Fix voice agent calls a repair company to collect appointment times and sends those times to the app for the tenant to choose. It runs when the matched company takes bookings by phone instead of an online calendar (for example the partner Hauswerk Aachen), after owner approval if the estimate exceeds €300. Non-partners without a calendar use the same path.
 
 ## 2. Call flow
 
-1. **App.** centrix Fix matches the ticket to a non-partner and records `calling_company`. The ticket waits for a result with `proposed_slots: []`.
+1. **App.** centrix Fix matches the ticket to a company that books by phone and records `calling_company`. The ticket waits for a result with `proposed_slots: []`.
 2. **ElevenLabs outbound call.** The server sends the call context to ElevenLabs, which dials through Twilio. If `VOICE_TEST_TO_NUMBER` is set, every call goes to the teammate playing the company.
 3. **Conversation.** The agent explains the repair, asks for concrete times, and repeats each weekday, date and local start time for confirmation. It aims for two or three slots and accepts one.
 4. **`submit_slots`.** The agent submits the confirmed start times in UTC and a one-sentence summary, then ends the call. For a refusal or a fully booked company it sends `slots: []`. On an answering machine it leaves no message, sends `slots: []` with the summary `Answering machine, no slots`, and ends the call.
@@ -170,7 +170,9 @@ The provider response has `success` (boolean), `message` (string), and optional 
 
 ## 8. Test scenarios
 
-End-to-end live test (20 Nov): tenant reported "locked out, key broke" → AI triage locksmith (urgent, 99%) → no partner covers locksmith → app called the non-partner Schlüsseldienst am Markt via ElevenLabs + Twilio (routed to the tester's phone by `VOICE_TEST_TO_NUMBER`) → agent collected Monday 09:00 and 14:00 → `submit_slots` posted to the live API → times appeared in the tenant app → tenant booked with consent.
+Final demo call (20 Nov, used in the pitch video): tenant reported "The balcony door doesn't close properly anymore, the handle is loose" → windows/doors → matched to the phone-booking partner Hauswerk Aachen → the agent called (routed to a tester's phone), collected Monday 09:00 and 14:00 → times appeared in the tenant app → booked.
+
+Earlier test: End-to-end live test (20 Nov): tenant reported "locked out, key broke" → AI triage locksmith (urgent, 99%) → no partner covers locksmith → app called the non-partner Schlüsseldienst am Markt via ElevenLabs + Twilio (routed to the tester's phone by `VOICE_TEST_TO_NUMBER`) → agent collected Monday 09:00 and 14:00 → `submit_slots` posted to the live API → times appeared in the tenant app → tenant booked with consent.
 
 
 Each submitted payload includes the same ticket and company IDs from the call context.
@@ -211,7 +213,7 @@ Open the [ElevenLabs browser test link](https://elevenlabs.io/app/talk-to?agent_
 &var_time_zone=<TIME_ZONE>
 ```
 
-For the manual fallback, an admin can open a ticket in `needs_human` or `emergency` in `/admin` and assign an active company. Assigning a partner uses its calendar. Assigning another non-partner uses the voice flow again. [Admin ticket view](../app/admin/_components/ticket-sheet.tsx) · [Ticket flow](../lib/flow.ts)
+For the manual fallback, an admin can open a ticket in `needs_human` or `emergency` in `/admin` and assign an active company. Assigning a partner uses its calendar. Assigning a company that books by phone uses the voice flow again. [Admin ticket view](../app/admin/_components/ticket-sheet.tsx) · [Ticket flow](../lib/flow.ts)
 
 ## 11. Setup checklist
 

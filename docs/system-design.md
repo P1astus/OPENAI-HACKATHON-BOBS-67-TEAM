@@ -2,6 +2,8 @@
 
 Compiled from the whiteboard session, Fri Nov 20.
 
+> **Update (Sat Nov 21, after reltix feedback):** the focus is working with **partner companies**. The voice agent is used for **partners that take bookings by phone** (e.g. Hauswerk Aachen) instead of an online calendar; calendar partners offer their calendar times. Calling non-partners remains only a fallback when no partner fits, and finding new companies is not part of the pitch. Later sections that say "the AI calls a non-partner" describe that fallback.
+
 ## 1. In one sentence
 When something breaks in an apartment, we find the best company to fix it, book the appointment with the tenant, pay for the finished repair from the owner's centrix wallet, and use the tenant's rating to decide which companies to keep, remove or sign as partners.
 

@@ -14,8 +14,8 @@ Open `/demo` on a wide screen to follow each action across the four views.
 2. **Approve the €420 pump repair in `/owner`.** Open the separate pump-fault ticket already waiting for Maria.
    Repairs estimated above €300 need owner approval. Approve it, have Lena pick and confirm a time in `/tenant`,
    then select **Accept** in `/partner`.
-3. **Try the locksmith call in `/tenant`.** As Lena, enter “I’m locked out. The key broke in the front door lock.”
-   No partner covers locksmith work, so the AI voice agent calls the non-partner Schlüsseldienst am Markt.
+3. **Try the phone-partner call in `/tenant`.** As Lena, enter “The balcony door doesn't close properly anymore, the handle is loose.”
+   The best match is Hauswerk Aachen, a partner that takes bookings by phone instead of an online calendar, so the AI voice agent calls it.
    In the demo, the call goes to a teammate playing the company. The agreed times appear for Lena to choose.
 4. **Finish a repair and rate it.** In `/partner`, use WarmHaus’s green **Mark as done** on the seeded past radiator appointment
    to see the invoice flow. For Lena’s newly booked job, use **Mark done**.
@@ -45,7 +45,7 @@ Tenant report → triage → match → tenant books → company marks done → w
 
 Triage → human review for an emergency, unclear trade, or low confidence
 Match → owner approval if the estimate is over €300
-Availability → partner calendar or a call to an eligible non-partner → tenant picks a time
+Availability → partner calendar, or a voice-agent call to a partner that books by phone → tenant picks a time
 ```
 
 - **AI triage.** OpenAI returns validated structured output for trade, urgency, confidence, and a short summary.
@@ -55,7 +55,7 @@ Availability → partner calendar or a call to an eligible non-partner → tenan
 - **Matching.** Code ranks active companies that cover the trade and address using
   `0.5 × reviews + 0.3 × price + 0.2 × distance`, with each input scaled to 0–1.
   Eligible partners come first. An estimate over €300 requires owner approval before booking.
-- **Voice.** ElevenLabs Agents calls eligible non-partners through Twilio. Agreed times come back through a
+- **Voice.** ElevenLabs Agents calls partners that book by phone (and, as a fallback, non-partners) through Twilio. Agreed times come back through a
   shared-secret-authenticated webhook. The call uses a repair summary and general location and omits tenant contact
   fields, unit details, and access notes before consent.
 - **Ratings.** A 1–10 review maps to a score from −1 to 1 (1 → −1, 5 → 0, 7 → 0.5, 10 → 1).

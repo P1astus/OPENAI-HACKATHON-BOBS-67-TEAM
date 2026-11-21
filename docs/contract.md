@@ -131,7 +131,7 @@ reported ──triage──► matched
 matched ──est. cost > €300──► awaiting_owner ──owner approves──► (slots)
 matched ──≤ €300──► (slots)
 (slots) partner: proposed_slots filled from calendar_slots
-        non-partner: proposed_slots filled by the voice agent webhook
+        phone-booking partner (or non-partner): proposed_slots filled by the voice agent webhook
 proposed_slots set ──tenant books + consent──► scheduled
 scheduled ──company marks done + amount──► paid   (invoice paid immediately from the owner's centrix wallet)
 paid ──owner forwards a wallet-paid invoice + wallet refund──► invoiced   (tenant pays)
@@ -168,7 +168,7 @@ Completing a job appends `invoiced` and `paid_from_wallet`. Forwarding appends `
 - `POST /api/tickets` returns 400 if the tenant doesn't live in the unit. Triage runs first (safety keywords → `emergency`, no model). Then `needs_human = trade === null || confidence < 0.7 || urgency === "emergency"` is decided in code. When the ticket goes to a human, `candidates` holds suggestions for the admin (every active company for the trade, radius ignored).
 - `clarify` accepts `needs_human` and `emergency` tickets, and returns 409 in other states. It appends `clarified` and `triaged` events, then runs normal matching for a clear non-emergency trade. When AI triage is unavailable, a single trade identified by keywords in the clarification can proceed. If the issue stays unclear, candidates include all active companies regardless of radius. Emergencies always require manual assignment.
 - `search-web` returns up to three sourced suggestions, with empty strings for missing contact details. Suggestions can be viewed and contacted manually. They are never stored or automatically called. Missing configuration, errors and the 20-second timeout return HTTP 200 with `{ results: [], note: "Web search unavailable" }`.
-- Partner slots are the next 3 free `calendar_slots` at least 2 h from now. For a non-partner, the API starts the ElevenLabs call and returns `proposed_slots: []`, and the slots arrive through `voice-result`. **Without ElevenLabs configured, the call is simulated** and the timeline says so. If the call fails, or the company offers no time, the ticket goes to `needs_human`.
+- Partner slots are the next 3 free `calendar_slots` at least 2 h from now. For a company without a calendar (a partner with `booking: "phone"`, or a non-partner), the API starts the ElevenLabs call and returns `proposed_slots: []`, and the slots arrive through `voice-result`. **Without ElevenLabs configured, the call is simulated** and the timeline says so. If the call fails, or the company offers no time, the ticket goes to `needs_human`.
 - `approve` with `approved: false` → `owner_approval: "rejected"`, status `needs_human` (the property manager decides).
 - `rate` appends `company_removed` or `potential_partner` events when that changes. The company's `status` flips to `blacklisted` automatically when its label is `bad`.
 - Event types: `reported`, `clarified`, `triaged`, `needs_human`, `emergency`, `no_partner`, `matched`, `owner_approval_requested`, `approved`, `rejected`, `calling_company`, `call_started`, `slots_proposed`, `booked`, `accepted`, `invoiced`, `paid_from_wallet`, `forwarded_to_tenant`, `invoice_paid`, `rated`, `company_removed`, `potential_partner`.
