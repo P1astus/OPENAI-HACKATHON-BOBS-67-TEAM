@@ -14,14 +14,15 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { acceptTicket, completeTicket } from "@/lib/api-client";
+import type { PartnerPerson } from "@/lib/bootstrap";
 import { refreshAll, useBootstrap, useInvoices, useTickets } from "@/lib/hooks";
-import type { Person, Property, Ticket, Unit } from "@/types";
+import type { Property, Ticket, Unit } from "@/types";
 
 const activeStatuses: Ticket["status"][] = ["matched", "awaiting_owner", "scheduled"];
 const doneStatuses: Ticket["status"][] = ["done", "invoiced", "paid"];
 
 function JobCard({ ticket, unit, property, tenant, pastAppointment }: {
-  ticket: Ticket; unit?: Unit; property?: Property; tenant?: Person; pastAppointment: string | null;
+  ticket: Ticket; unit?: Unit; property?: Property; tenant?: PartnerPerson; pastAppointment: string | null;
 }) {
   const [accepting, setAccepting] = useState(false);
   const accepted = ticket.events.some(({ type }) => type === "accepted");
@@ -69,9 +70,7 @@ function JobCard({ ticket, unit, property, tenant, pastAppointment }: {
         </p>
       </div>
       <div className="rounded-[14px] border">
-        {tenant
-          ? <TenantContact tenant={tenant} consent={ticket.consent} />
-          : <p className="p-4 text-sm text-muted-foreground">Tenant contact unavailable</p>}
+        <TenantContact tenant={tenant} consent={ticket.consent} />
       </div>
       <div className="mt-auto flex flex-wrap items-center gap-2 border-t pt-4">
         {pastAppointment && (
@@ -101,15 +100,15 @@ function JobCard({ ticket, unit, property, tenant, pastAppointment }: {
   );
 }
 
-function TenantContact({ tenant, consent }: { tenant: Person; consent: Ticket["consent"] }) {
+function TenantContact({ tenant, consent }: { tenant?: PartnerPerson; consent: Ticket["consent"] }) {
   const shared = consent?.data_shared ?? [];
-  const phone = shared.includes("phone") ? tenant.phone : "";
-  const email = shared.includes("email") ? tenant.email : "";
+  const phone = shared.includes("phone") ? tenant?.phone ?? "" : "";
+  const email = shared.includes("email") ? tenant?.email ?? "" : "";
 
   return (
     <div className={`[&>div]:shadow-none ${phone ? "" : "[&_a[href^='tel:']]:hidden"} ${email ? "" : "[&_a[href^='mailto:']]:hidden"}`}>
       <ContactCard
-        name={shared.includes("name") ? tenant.name : "Tenant"}
+        name={shared.includes("name") ? tenant?.name ?? "Tenant" : "Tenant"}
         phone={phone}
         email={email}
         consent={phone || email ? consent : null}
@@ -193,7 +192,7 @@ function appointmentOrder(a: Ticket, b: Ticket) {
 
 export function PartnerJobs({ companyId }: { companyId: string }) {
   const tickets = useTickets({ company_id: companyId });
-  const bootstrap = useBootstrap();
+  const bootstrap = useBootstrap(companyId);
   const lookups = bootstrap.data;
   const error = tickets.error ?? bootstrap.error;
   // Recheck the appointment against the current time whenever the jobs render.
@@ -227,7 +226,7 @@ export function DoneJobs({ companyId }: { companyId: string }) {
   const tickets = useTickets({ company_id: companyId });
   const invoices = useInvoices({ company_id: companyId });
   const invoiceList = invoices.data;
-  const bootstrap = useBootstrap();
+  const bootstrap = useBootstrap(companyId);
   const lookups = bootstrap.data;
   const error = tickets.error ?? invoices.error ?? bootstrap.error;
   const jobs = tickets.data?.filter(({ status }) => doneStatuses.includes(status));

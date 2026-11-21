@@ -24,7 +24,8 @@ export function companyRating(company: Pick<Company, "reviews" | "is_partner">):
     return { score: null, label: "new", review_count, good_count, bad_count, above6_count, potential_partner: false };
   }
 
-  const score = ratings.reduce((sum, r) => sum + reviewScore(r), 0) / review_count;
+  const mean = ratings.reduce((sum, r) => sum + reviewScore(r), 0) / review_count;
+  const score = Number(mean.toFixed(6));
   const label = score < BAD_BELOW ? "bad" : score > GOOD_ABOVE ? "good" : "neutral";
   const potential_partner = !company.is_partner && above6_count >= 3 && bad_count <= good_count && label === "good";
   return { score, label, review_count, good_count, bad_count, above6_count, potential_partner };

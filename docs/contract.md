@@ -148,12 +148,12 @@ The callers below describe the intended UI. The voice callback checks a shared s
 
 | Method + path | Who calls it | Body | Returns |
 |---|---|---|---|
-| `GET /api/bootstrap` | all screens | – | `{ properties, units, people }` for lookups |
+| `GET /api/bootstrap?company_id=` | all screens (company ID optional) | – | `{ properties, units, people }` for lookups |
 | `GET /api/tickets?tenant_id=&owner_id=&company_id=&status=` | all screens | – | `Ticket[]` newest first |
 | `GET /api/tickets/:id` | tenant, owner, admin | – | `Ticket` |
 | `POST /api/tickets` | tenant | `{ tenant_id, unit_id, claim }` (claim 3–2000 characters after trimming) | `Ticket` after triage and any matching and call-start work |
 | `POST /api/tickets/:id/clarify` | owner, admin | `{ note, actor: "owner" \| "admin" }` (5–1000 characters after trimming) | `Ticket` after re-triage + matching |
-| `POST /api/tickets/:id/assign` | owner, admin | `{ company_id }` | `Ticket` (from needs_human/emergency) |
+| `POST /api/tickets/:id/assign` | owner, admin | `{ company_id }` | `Ticket` (from `needs_human`, `emergency`, or `matched` with no slots or appointment) |
 | `POST /api/tickets/:id/approve` | owner | `{ approved: boolean }` | `Ticket` |
 | `POST /api/tickets/:id/book` | tenant | `{ slot, consent: { data_shared } }` | `Ticket` (scheduled) |
 | `POST /api/tickets/:id/accept` | company | – | `Ticket` (event only) |
@@ -169,11 +169,12 @@ The callers below describe the intended UI. The voice callback checks a shared s
 
 ## Behaviour notes
 - `POST /api/tickets` returns 400 if the tenant doesn't live in the unit. Triage runs first (safety keywords → `emergency`, no model). Code sends unclear trades, confidence below 0.7 and emergencies to a human. Model failure also sends new reports for review. When the ticket goes to a human, `candidates` holds suggestions for the admin (every active company for the trade, radius ignored).
-- `clarify` accepts `needs_human` and `emergency` tickets, and returns 409 in other states. It appends `clarified` and `triaged` events, then runs normal matching for a clear non-emergency trade. When AI triage is unavailable, a single trade identified by keywords in the clarification can proceed. If the issue stays unclear, candidates include all active companies regardless of radius. Emergencies always require manual assignment.
+- `clarify` accepts `needs_human` and `emergency` tickets, and returns 409 in other states. It appends `clarified` and `triaged` events, then runs normal matching for a clear non-emergency trade. A rejected estimate with an unchanged trade keeps the ticket in `needs_human` for manual assignment. When AI triage is unavailable, a single trade identified by keywords in the clarification can proceed. If the issue stays unclear, candidates include all active companies regardless of radius. Emergencies always require manual assignment.
 - `search-web` returns up to three sourced suggestions, with empty strings for missing contact details. Suggestions can be viewed and contacted manually. They are never stored or automatically called. Missing configuration, errors and the 20-second timeout return HTTP 200 with `{ results: [], note: "Web search unavailable" }`.
-- Calendar partners offer up to three free slots strictly more than two hours ahead. For phone partners and non-partners, the API starts the ElevenLabs call. The ticket waits with no proposed slots until `voice-result` arrives. Only calendar partners use calendar slots. **Without ElevenLabs configured, the call is simulated** and the timeline says so. If the call fails, or the company offers no time, the ticket goes to `needs_human`.
-- `book` requires a future, offered, untaken slot and records portal consent. Its allowed fields are `name`, `phone`, `email`, `address` and `access_notes`. The tenant UI submits name, phone, address and access notes on confirmation.
-- `complete` requires a scheduled ticket and a positive amount up to €100,000. `accept` records the company’s confirmation as an event.
+- Calendar partners offer up to three free slots strictly more than two hours ahead. Phone partners and non-partners use ElevenLabs when configured with `VOICE_WEBHOOK_SECRET`, and otherwise use a labeled simulation. Failed calls or empty results go to `needs_human`. Ticket reads and mutations also send an unbooked phone match with no slots to `needs_human` more than four minutes after the latest call event. Owners and managers can reassign it while it waits.
+- `book` requires a future, offered slot and records portal consent for `name`, `phone`, `email`, `address` and `access_notes`. A slot already booked with the same company returns 409. Booking removes that slot from other open offers for that company and refills affected calendar offers from free times, sending them to `needs_human` if none remain. The tenant UI submits name, phone, address and access notes on confirmation.
+- `complete` requires a scheduled ticket and a positive amount up to €100,000. If an estimate exists and the amount exceeds both €300 and 125% of the estimate, completion returns 409 and asks the company to contact the owner. `accept` records the company’s confirmation as an event.
+- `GET /api/bootstrap?company_id=…` limits properties and units to that company’s tickets, blanks access notes without consent for that unit, and includes only tenants with consent on those tickets and their shared contact fields. Omitting the parameter returns all lookups.
 - `approve` with `approved: false` → `owner_approval: "rejected"`, status `needs_human` (the property manager decides).
 - `rate` appends `company_removed` or `potential_partner` events when that changes. The company's `status` flips to `blacklisted` automatically when its label is `bad`.
 - Event types: `reported`, `clarified`, `triaged`, `needs_human`, `emergency`, `no_partner`, `matched`, `owner_approval_requested`, `approved`, `rejected`, `calling_company`, `call_started`, `slots_proposed`, `booked`, `accepted`, `invoiced`, `paid_from_wallet`, `forwarded_to_tenant`, `invoice_paid`, `rated`, `company_removed`, `potential_partner`.

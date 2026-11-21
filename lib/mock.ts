@@ -8,6 +8,8 @@ import {
   type TicketFilter,
   type WebSearchResponse,
 } from "./api-client";
+import { bootstrapView } from "./bootstrap";
+import { isUnscheduledMatch, usesCalendar } from "./ticket-state";
 import type { Company, CompanyRating, Invoice, MatchCandidate, Property, Ticket, TicketEvent, Trade, Triage } from "../types";
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -145,7 +147,7 @@ function seedCompany(
     ...company,
     phone: `+49 241 0000 13${index}`,
     email: `${company.id.slice(2)}@example.com`,
-    calendar_slots: company.is_partner ? calendarSlots(seedTime, 1) : [],
+    calendar_slots: usesCalendar(company) ? calendarSlots(seedTime, 1) : [],
     reviews: ratings.map((rating, reviewIndex) => ({
       ticket_id: `t_history_${company.id.slice(2)}_${reviewIndex + 1}`,
       rating, created_at: daysFrom(seedTime, -12 - reviewIndex * 8),
@@ -175,7 +177,7 @@ const companies = [
   seedCompany({ id: "c_schluessel", name: "Schlüsseldienst am Markt", is_partner: false, trades: ["locksmith", "windows_doors"],
     lat: 50.7774, lng: 6.0834, service_radius_km: 13, hourly_rate_eur: 82, callout_fee_eur: 38, booking: "phone", status: "active" },
   [8, 7, 8, 6, 7], 7),
-  seedCompany({ id: "c_hauswerk", name: "Hauswerk Aachen", is_partner: false, trades: ["general", "windows_doors", "plumbing", "electrical"],
+  seedCompany({ id: "c_hauswerk", name: "Hauswerk Aachen", is_partner: true, trades: ["general", "windows_doors", "plumbing", "electrical"],
     lat: 50.7659, lng: 6.0695, service_radius_km: 16, hourly_rate_eur: 69, callout_fee_eur: 40, booking: "phone", status: "active" },
   [6, 5, 7, 4, 5, 6], 8),
 ];
@@ -358,7 +360,7 @@ function triageClaim(claim: string): Triage {
 }
 
 function proposeSlots(ticket: Ticket, company: Company) {
-  if (company.is_partner) {
+  if (usesCalendar(company)) {
     ticket.proposed_slots = company.calendar_slots.filter((slot) => Date.parse(slot) > Date.now()).slice(0, 3);
     if (ticket.proposed_slots.length) {
       addEvent(ticket, "agent", "slots_proposed", "Available calendar times offered to the tenant.");
@@ -369,7 +371,7 @@ function proposeSlots(ticket: Ticket, company: Company) {
   addEvent(ticket, "agent", "calling_company", `Contacting ${company.name} to agree on a time.`);
   const currentState = state;
   setTimeout(() => {
-    if (state !== currentState || ticket.status !== "matched") return;
+    if (state !== currentState || !isUnscheduledMatch(ticket) || ticket.company_id !== company.id) return;
     const bookedSlots = state.tickets.filter(({ company_id }) => company_id === company.id)
       .map(({ appointment_at }) => appointment_at);
     ticket.proposed_slots = calendarSlots(Date.now(), 1).filter((slot) => !bookedSlots.includes(slot)).slice(0, 3);
@@ -396,9 +398,8 @@ function matchTicket(ticket: Ticket, company: Company, cost: number, actor: "adm
   }
 }
 
-export async function getBootstrap(): Promise<Bootstrap> {
-  const { properties, units, people } = state;
-  return structuredClone({ properties, units, people });
+export async function getBootstrap(companyId?: string) {
+  return structuredClone(bootstrapView(state, companyId));
 }
 
 export async function getTickets(filter: TicketFilter = {}): Promise<Ticket[]> {
@@ -481,7 +482,7 @@ export async function searchCompaniesOnWeb(trade: Trade, postcode: string, city:
 export async function assignTicket(id: string, company_id: string): Promise<Ticket> {
   const ticket = findTicket(id);
   const company = findCompany(company_id);
-  requireState(ticket.status === "needs_human" || ticket.status === "emergency", "This ticket is not waiting for an assignment");
+  requireState(ticket.status === "needs_human" || ticket.status === "emergency" || isUnscheduledMatch(ticket), "This ticket is not waiting for an assignment");
   requireState(company.status === "active", "This company is blacklisted");
   const candidate = ticket.candidates.find((option) => option.company_id === company_id);
   matchTicket(ticket, company, candidate?.est_cost_eur ?? estimate(company, ticket.triage?.trade ?? null), "admin");
@@ -509,7 +510,7 @@ export async function bookSlot(id: string, slot: string, data_shared: string[]):
   requireState(ticket.status === "matched" && (ticket.owner_approval === "not_needed" || ticket.owner_approval === "approved"), "This ticket cannot be booked yet");
   const company = findCompany(ticket.company_id!);
   const available = ticket.proposed_slots.includes(slot) && Date.parse(slot) > Date.now()
-    && (!company.is_partner || company.calendar_slots.includes(slot))
+    && (!usesCalendar(company) || company.calendar_slots.includes(slot))
     && !state.tickets.some((other) => other.company_id === company.id && other.appointment_at === slot);
   requireState(available, "This appointment time is no longer available");
 

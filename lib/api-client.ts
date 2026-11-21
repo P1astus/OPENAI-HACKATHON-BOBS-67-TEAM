@@ -1,11 +1,12 @@
-import type { Company, CompanyRating, Invoice, Person, Property, Ticket, TicketStatus, Trade, Unit } from "../types";
+import type { Company, CompanyRating, Invoice, Ticket, TicketStatus, Trade } from "../types";
 import type { WebSearchResponse } from "./agent/search-web";
+import type { Bootstrap, PartnerPerson } from "./bootstrap";
 
 export type { WebSearchResponse, WebSearchResult } from "./agent/search-web";
+export type { Bootstrap } from "./bootstrap";
 
 export type InvoiceView = Invoice & { overdue: boolean };
 export type CompanyView = Company & { rating: CompanyRating };
-export type Bootstrap = { properties: Property[]; units: Unit[]; people: Person[] };
 
 export type InvoiceFilter = { owner_id?: string; tenant_id?: string; company_id?: string };
 export type TicketFilter = InvoiceFilter & { status?: TicketStatus };
@@ -74,8 +75,10 @@ function ticketPath(id: string) {
   return `/api/tickets/${encodeURIComponent(id)}`;
 }
 
-export async function getBootstrap(): Promise<Bootstrap> {
-  return request("/api/bootstrap", (mock) => mock.getBootstrap());
+export function getBootstrap(): Promise<Bootstrap>;
+export function getBootstrap(companyId: string | undefined): Promise<Bootstrap<PartnerPerson>>;
+export async function getBootstrap(companyId?: string): Promise<Bootstrap<PartnerPerson>> {
+  return request(withQuery("/api/bootstrap", { company_id: companyId }), (mock) => mock.getBootstrap(companyId));
 }
 
 export async function getTickets(filter: TicketFilter = {}): Promise<Ticket[]> {
@@ -88,7 +91,7 @@ export async function getTicket(id: string): Promise<Ticket> {
 
 export async function createTicket(input: CreateTicketInput): Promise<Ticket> {
   return request("/api/tickets", (mock) => mock.createTicket(input), {
-    method: "POST", body: input, mockDelay: 2500,
+    method: "POST", body: input, mockDelay: 2500, timeoutMs: 35_000,
   });
 }
 
@@ -100,7 +103,7 @@ export async function assignTicket(id: string, company_id: string): Promise<Tick
 
 export async function clarifyTicket(id: string, note: string, actor: "owner" | "admin"): Promise<Ticket> {
   return request(`${ticketPath(id)}/clarify`, (mock) => mock.clarifyTicket(id, note, actor), {
-    method: "POST", body: { note, actor }, mockDelay: 1500, timeoutMs: 30_000,
+    method: "POST", body: { note, actor }, mockDelay: 1500, timeoutMs: 35_000,
   });
 }
 

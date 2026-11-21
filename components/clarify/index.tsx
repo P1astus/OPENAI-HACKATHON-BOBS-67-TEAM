@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { assignTicket, clarifyTicket, type CompanyView } from "@/lib/api-client";
 import { refreshAll } from "@/lib/hooks";
+import { isUnscheduledMatch } from "@/lib/ticket-state";
 import type { Property, Ticket } from "@/types";
 import { CompanyList } from "./company-list";
 import { tradeLabels } from "./trades";
@@ -28,6 +29,7 @@ export function ClarifyRepair({ ticket, actor, companies, property, tenantName }
   const [assigning, setAssigning] = useState<string | null>(null);
   const current = result && result.events.length > ticket.events.length ? result : ticket;
   const canClarify = current.status === "needs_human" || current.status === "emergency";
+  const canAssign = canClarify || isUnscheduledMatch(current);
   const emergency = current.status === "emergency";
   const active = companies.filter((company) => company.status === "active");
   const chosen = companies.find((company) => company.id === result?.company_id);
@@ -75,11 +77,11 @@ export function ClarifyRepair({ ticket, actor, companies, property, tenantName }
     }
   }
 
-  if (!canClarify && !matched) return null;
+  if (!canAssign && !matched) return null;
 
   return (
     <div className="space-y-4">
-      <section aria-labelledby={id} className="shadow-soft space-y-3 rounded-[14px] border bg-card p-4">
+      {(canClarify || matched) && <section aria-labelledby={id} className="shadow-soft space-y-3 rounded-[14px] border bg-card p-4">
         <h3 id={id} className="font-semibold">What&apos;s the actual problem?</h3>
         {canClarify && (
           <form className="space-y-3" onSubmit={submit}>
@@ -103,13 +105,13 @@ export function ClarifyRepair({ ticket, actor, companies, property, tenantName }
               <PartnerPill isPartner={chosen.is_partner} />
             </p>
           ) : result?.status === "needs_human" ? (
-            <p>Still not clear. Pick a company below.</p>
+            <p>{result.owner_approval === "rejected" ? result.triage?.reason : "Still not clear. Pick a company below."}</p>
           ) : result?.status === "emergency" ? (
             <p>Problem updated. Pick a company below.</p>
           ) : null}
         </div>
-      </section>
-      {canClarify && <CompanyList ticket={current} companies={active} disabled={disabled} assigning={assigning} onAssign={assign} />}
+      </section>}
+      {canAssign && <CompanyList ticket={current} companies={active} disabled={disabled} assigning={assigning} onAssign={assign} />}
       {canClarify && trade && property && <WebResults key={`${trade}:${property.id}`} trade={trade} property={property} />}
     </div>
   );
