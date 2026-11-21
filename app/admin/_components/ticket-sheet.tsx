@@ -77,8 +77,10 @@ function TicketDetails({ ticket, bootstrap, companies, unitLabel, property }: {
               <div><dt className="text-xs text-muted-foreground">Confidence</dt><dd className="mt-1 font-medium tabular-nums">{percent.format(triage.confidence)}</dd></div>
             </dl>
             <p className="wrap-anywhere">{triage.summary}</p>
-            {triage.needs_human && triage.reason && (
-              <p className="rounded-lg bg-warning/12 px-3 py-2 text-sm wrap-anywhere">{triage.reason}</p>
+            {triage.reason && (
+              <p className={triage.needs_human ? "rounded-lg bg-warning/12 px-3 py-2 text-sm wrap-anywhere" : "text-sm text-muted-foreground wrap-anywhere"}>
+                {triage.reason}
+              </p>
             )}
           </div>
         ) : <EmptyState title="No triage yet" />}

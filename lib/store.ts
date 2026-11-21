@@ -5,7 +5,7 @@ import { HttpError } from "./errors";
 import { loadSeed, type State } from "./seed";
 import { isUnscheduledMatch, lastCallEvent, sendToHuman, usesCalendar } from "./ticket-state";
 
-export type { State } from "./seed";
+export type { State, VoiceAttempt } from "./seed";
 
 /**
  * Whole-app state in one place.
@@ -86,6 +86,21 @@ function readMemory() {
   return memory && structuredClone(memory);
 }
 
+function upgradeState(state: State): State {
+  state.generation ??= 0;
+  if (!state.voiceCalls) {
+    state.voiceCalls = {};
+    for (const ticket of state.tickets) {
+      if (ticket.events.some(({ type }) => type === "calling_company")) {
+        // Older timelines don't store company IDs on call events. Treat every company as
+        // previously called on these tickets when starting a new attempt.
+        state.voiceCalls[ticket.id] = { companies: state.companies.map(({ id }) => id) };
+      }
+    }
+  }
+  return state;
+}
+
 async function readLocked(lock: WriteLock): Promise<State | null> {
   if (!lock) return readMemory();
   // Read on the Redis primary so a writer in another instance sees the last committed state.
@@ -111,7 +126,7 @@ async function save(state: State, lock: WriteLock): Promise<void> {
 
 async function loadLocked(lock: WriteLock): Promise<State> {
   const stored = await readLocked(lock);
-  if (stored) return stored;
+  if (stored) return upgradeState(stored);
   const { state } = await loadSeed();
   await save(state, lock);
   return state;
@@ -120,7 +135,7 @@ async function loadLocked(lock: WriteLock): Promise<State> {
 export async function getState(): Promise<State> {
   const r = client();
   const stored = r ? await r.get<State>(KEY).catch(() => { throw unavailable(); }) : readMemory();
-  return stored ?? withWriteLock(loadLocked);
+  return stored ? upgradeState(stored) : withWriteLock(loadLocked);
 }
 
 function staleCalls(state: State, now = Date.now()) {
@@ -177,7 +192,19 @@ export async function mutate<T>(fn: (s: State) => T | Promise<T>): Promise<{ sta
 /** Copy the seed back in. */
 export async function reset(): Promise<{ source: "data" | "builtin" }> {
   return withWriteLock(async (lock) => {
+    const previous = await readLocked(lock);
     const { state, source } = await loadSeed();
+    if (previous) {
+      const current = upgradeState(previous);
+      state.generation = current.generation + 1;
+      // Seed IDs are reused. Keep pair history so old ID-less callbacks can't attach to a new call.
+      for (const { id } of state.tickets) {
+        const history = current.voiceCalls[id];
+        if (history) state.voiceCalls[id] = { companies: history.companies };
+      }
+    } else {
+      state.generation = 1;
+    }
     await save(state, lock);
     return { source };
   });

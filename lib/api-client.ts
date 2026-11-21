@@ -95,9 +95,9 @@ export async function createTicket(input: CreateTicketInput): Promise<Ticket> {
   });
 }
 
-export async function assignTicket(id: string, company_id: string): Promise<Ticket> {
-  return request(`${ticketPath(id)}/assign`, (mock) => mock.assignTicket(id, company_id), {
-    method: "POST", body: { company_id },
+export async function assignTicket(id: string, company_id: string, actor: "owner" | "admin" = "admin"): Promise<Ticket> {
+  return request(`${ticketPath(id)}/assign`, (mock) => mock.assignTicket(id, company_id, actor), {
+    method: "POST", body: { company_id, actor },
   });
 }
 

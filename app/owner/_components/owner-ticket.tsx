@@ -28,9 +28,13 @@ export function OwnerTicket({ ticket, company, unit, onOpen }: {
   async function decide(approved: boolean) {
     setPending(approved ? "approve" : "decline");
     try {
-      await approveTicket(ticket.id, approved);
+      const updated = await approveTicket(ticket.id, approved);
       await refreshAll();
-      toast.success(approved ? "Repair approved" : "Estimate declined");
+      if (updated.owner_approval !== (approved ? "approved" : "rejected")) {
+        toast.error(updated.events.at(-1)?.message ?? "The repair could not be updated.");
+      } else {
+        toast.success(approved ? "Repair approved" : "Estimate declined");
+      }
     } catch (error) {
       toast.error((error as Error).message);
     } finally {

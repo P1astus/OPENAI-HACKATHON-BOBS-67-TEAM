@@ -6,13 +6,19 @@ describe("triage safety rules (no model)", () => {
     "I smell gas in the kitchen", "Starker Gasgeruch im Treppenhaus", "Wasserrohrbruch im Bad!",
     "There is water everywhere in the bathroom", "The ceiling is dripping from upstairs",
     "Smoke coming out of the socket", "Sparks when I plug in the kettle", "There's a burning smell from the fuse box",
+    "There is no power in my entire apartment", "Every socket is dead", "Stromausfall in der ganzen Wohnung", "Kein Strom",
+    "The whole flat has no electricity", "All outlets in my apartment have no power", "We have no power at all.",
   ])("emergency: %s", async (claim) => {
     expect(emergencyHit(claim)).not.toBeNull();
     const { triage } = await triageClaim(claim);
     expect(triage).toMatchObject({ urgency: "emergency", needs_human: true, source: "rules" });
   });
 
-  it.each(["The heating is cold", "The smoke detector keeps beeping", "My kitchen tap drips"])("not an emergency: %s", (claim) => {
+  it.each([
+    "The heating is cold", "The smoke detector keeps beeping", "My kitchen tap drips",
+    "No power in one socket", "One socket is dead", "Kein Strom an einer Steckdose", "Stromausfall an einer Steckdose",
+    "No power in my apartment's kitchen socket",
+  ])("not an emergency: %s", (claim) => {
     expect(emergencyHit(claim)).toBeNull();
   });
 });

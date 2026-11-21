@@ -3,6 +3,7 @@ import { zodTextFormat } from "openai/helpers/zod";
 import { z } from "zod";
 import type { Property, Trade, Triage, Unit } from "../../types";
 import { TRADES, tradeSchema } from "../schemas";
+import { wholeHomePowerOutage } from "./power-outage";
 
 export const CONFIDENCE_THRESHOLD = 0.7;
 const MODEL_TIMEOUT_MS = 10_000;
@@ -17,11 +18,14 @@ const EMERGENCY_RULES: { label: string; pattern: RegExp }[] = [
   { label: "water emergency", pattern: /\bflood(?:ed|ing)?\b|wasserrohrbruch|water everywhere|ceiling (?:is )?dripping|überschwemm|burst pipe|pipe burst/i },
   { label: "fire or smoke", pattern: /\bfire\b|\bsmoke\b(?! (?:detector|alarm))|smoking socket|\bfeuer\b|\brauch\b|\bbrennt\b/i },
   { label: "sparks or burning smell", pattern: /\bsparks?\b|sparking|burning smell|smell(?:s)? (?:of )?burning|funken|verbrannt|brandgeruch|schmorgeruch/i },
-  { label: "no power in the whole flat", pattern: /no power (?:in|for) the (?:whole|entire) (?:flat|apartment)|stromausfall/i },
 ];
 
+const OUTAGE = "no power in the whole flat";
+
 export function emergencyHit(claim: string): string | null {
-  return EMERGENCY_RULES.find((r) => r.pattern.test(claim))?.label ?? null;
+  const hit = EMERGENCY_RULES.find((r) => r.pattern.test(claim));
+  if (hit) return hit.label;
+  return wholeHomePowerOutage(claim) ? OUTAGE : null;
 }
 
 // Fallback trade guess when the model is unavailable. Order matters: first hit wins.
@@ -130,10 +134,10 @@ export async function triageClaim(claim: string, ctx: TriageContext = {}, clarif
     return { triage, latency_ms, error };
   };
 
-  const hit = emergencyHit(claim);
+  const hit = emergencyHit(claim) ?? (clarification ? emergencyHit(clarification) : null);
   if (hit) {
     return done(decide({
-      trade: keywordTrade(claim), urgency: "emergency", confidence: 1, source: "rules",
+      trade: hit === OUTAGE ? "electrical" : keywordTrade(claim), urgency: "emergency", confidence: 1, source: "rules",
       summary: `Possible emergency (${hit}) reported by the tenant.`,
     }));
   }

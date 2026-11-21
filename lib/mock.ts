@@ -8,8 +8,11 @@ import {
   type TicketFilter,
   type WebSearchResponse,
 } from "./api-client";
+import { wholeHomePowerOutage } from "./agent/power-outage";
 import { bootstrapView } from "./bootstrap";
-import { isUnscheduledMatch, usesCalendar } from "./ticket-state";
+import { manualCandidate } from "./matching";
+import { completeBody } from "./schemas";
+import { isUnscheduledMatch, markCompanyUnavailable, markManualAssignment, usesCalendar } from "./ticket-state";
 import type { Company, CompanyRating, Invoice, MatchCandidate, Property, Ticket, TicketEvent, Trade, Triage } from "../types";
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -328,7 +331,7 @@ const findInvoice = (id: string) => byId(state.invoices, id, "Invoice");
 const findCompany = (id: string) => byId(state.companies, id, "Company");
 const findUnit = (id: string) => byId(state.units, id, "Unit");
 
-function requireState(condition: boolean, message: string) {
+function requireState(condition: boolean, message: string): asserts condition {
   if (!condition) throw new ApiError(message, 409);
 }
 
@@ -346,9 +349,10 @@ const tradeKeywords: [Trade, RegExp][] = [
 
 function triageClaim(claim: string): Triage {
   const trade = tradeKeywords.find(([, keywords]) => keywords.test(claim))?.[0] ?? null;
-  if (/\bgas\b|gasgeruch|flood|wasserrohrbruch|water everywhere|ceiling dripping|\bfire\b|smoke|sparks|burning smell|no power.*(?:flat|apartment)|stromausfall/i.test(claim)) {
+  const outage = wholeHomePowerOutage(claim);
+  if (outage || /\bgas\b|gasgeruch|flood|wasserrohrbruch|water everywhere|ceiling dripping|\bfire\b|smoke|sparks|burning smell/i.test(claim)) {
     return {
-      trade, urgency: "emergency", confidence: 1, summary: "Possible emergency reported.",
+      trade: outage ? "electrical" : trade, urgency: "emergency", confidence: 1, summary: "Possible emergency reported.",
       needs_human: true, reason: "An emergency keyword requires manual handling.", source: "rules",
     };
   }
@@ -381,7 +385,7 @@ function proposeSlots(ticket: Ticket, company: Company) {
   }, 1000);
 }
 
-function matchTicket(ticket: Ticket, company: Company, cost: number, actor: "admin" | "agent") {
+function matchTicket(ticket: Ticket, company: Company, cost: number, actor: "admin" | "agent" | "owner") {
   ticket.company_id = company.id;
   ticket.partner_type = company.is_partner ? "partner" : "non_partner";
   ticket.est_cost_eur = cost;
@@ -479,13 +483,19 @@ export async function searchCompaniesOnWeb(trade: Trade, postcode: string, city:
   };
 }
 
-export async function assignTicket(id: string, company_id: string): Promise<Ticket> {
+export async function assignTicket(id: string, company_id: string, actor: "owner" | "admin" = "admin"): Promise<Ticket> {
   const ticket = findTicket(id);
   const company = findCompany(company_id);
   requireState(ticket.status === "needs_human" || ticket.status === "emergency" || isUnscheduledMatch(ticket), "This ticket is not waiting for an assignment");
   requireState(company.status === "active", "This company is blacklisted");
-  const candidate = ticket.candidates.find((option) => option.company_id === company_id);
-  matchTicket(ticket, company, candidate?.est_cost_eur ?? estimate(company, ticket.triage?.trade ?? null), "admin");
+  let candidate = ticket.candidates.find((option) => option.company_id === company_id);
+  if (!candidate) {
+    const property = byId(state.properties, findUnit(ticket.unit_id).property_id, "Property");
+    candidate = manualCandidate(property, state.companies, ticket.candidates, company, ticket.triage?.trade ?? null);
+    ticket.candidates.push(candidate);
+  }
+  markManualAssignment(ticket, actor);
+  matchTicket(ticket, company, candidate.est_cost_eur, actor);
   return structuredClone(ticket);
 }
 
@@ -493,6 +503,10 @@ export async function approveTicket(id: string, approved: boolean): Promise<Tick
   const ticket = findTicket(id);
   requireState(ticket.status === "awaiting_owner" && ticket.owner_approval === "pending", "This ticket is not waiting for owner approval");
   const company = findCompany(ticket.company_id!);
+  if (company.status !== "active") {
+    markCompanyUnavailable(ticket, company);
+    return structuredClone(ticket);
+  }
   ticket.owner_approval = approved ? "approved" : "rejected";
   addEvent(ticket, "owner", approved ? "approved" : "rejected", approved ? "The owner approved the estimate." : "The owner declined the estimate.");
   if (approved) {
@@ -507,8 +521,11 @@ export async function approveTicket(id: string, approved: boolean): Promise<Tick
 
 export async function bookSlot(id: string, slot: string, data_shared: string[]): Promise<Ticket> {
   const ticket = findTicket(id);
-  requireState(ticket.status === "matched" && (ticket.owner_approval === "not_needed" || ticket.owner_approval === "approved"), "This ticket cannot be booked yet");
-  const company = findCompany(ticket.company_id!);
+  const company = ticket.company_id ? findCompany(ticket.company_id) : null;
+  if (!ticket.appointment_at && company && company.status !== "active") {
+    throw new ApiError(markCompanyUnavailable(ticket, company), 409);
+  }
+  requireState(company !== null && ticket.status === "matched" && (ticket.owner_approval === "not_needed" || ticket.owner_approval === "approved"), "This ticket cannot be booked yet");
   const available = ticket.proposed_slots.includes(slot) && Date.parse(slot) > Date.now()
     && (!usesCalendar(company) || company.calendar_slots.includes(slot))
     && !state.tickets.some((other) => other.company_id === company.id && other.appointment_at === slot);
@@ -538,15 +555,15 @@ export async function acceptTicket(id: string): Promise<Ticket> {
 export async function completeTicket(id: string, amount_eur: number): Promise<{ ticket: Ticket; invoice: Invoice }> {
   const ticket = findTicket(id);
   requireState(ticket.status === "scheduled", "This ticket is not scheduled");
-  const amount = roundMoney(amount_eur);
-  if (!Number.isFinite(amount) || amount <= 0) throw new ApiError("Enter a positive invoice amount", 400);
+  const parsed = completeBody.safeParse({ amount_eur });
+  if (!parsed.success) throw new ApiError(parsed.error.issues[0].message, 400);
   const unit = findUnit(ticket.unit_id);
   const owner = byId(state.people, unit.owner_id, "Owner");
   const now = Date.now();
   const at = daysFrom(now, 0);
   const invoice: Invoice = {
     id: `inv_${ticket.id.slice(2)}`, ticket_id: id, company_id: ticket.company_id!, unit_id: unit.id,
-    property_id: unit.property_id, amount_eur: amount, issued_at: at,
+    property_id: unit.property_id, amount_eur, issued_at: at,
     due_at: daysFrom(now, 14), payer: "owner", forwarded_at: null, status: "paid", paid_at: at,
   };
   ticket.invoice_id = invoice.id;
@@ -565,7 +582,12 @@ export async function rateTicket(id: string, rating: number): Promise<{ ticket: 
   ticket.rating = rating;
   company.reviews.push({ ticket_id: id, rating, created_at: at });
   const company_rating = companyRating(company);
-  if (company_rating.score !== null && company_rating.score < -0.3) company.status = "blacklisted";
+  if (company.status === "active" && company_rating.score !== null && company_rating.score < -0.3) {
+    company.status = "blacklisted";
+    for (const other of state.tickets) {
+      if (other.company_id === company.id) markCompanyUnavailable(other, company);
+    }
+  }
   addEvent(ticket, "tenant", "rated", `The tenant rated the repair ${rating}/10.`, at);
   return structuredClone({ ticket, company_rating });
 }

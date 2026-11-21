@@ -8,6 +8,9 @@ import { tradeLabels } from "./trades";
 export function WebResults({ trade, property }: { trade: Trade; property: Property }) {
   const [pending, setPending] = useState(false);
   const [response, setResponse] = useState<WebSearchResponse | null>(null);
+  const message = response?.note === "Web search unavailable"
+    ? "Online search is unavailable right now."
+    : response?.results.length === 0 ? "Nothing found online. reltix will find someone." : null;
   const linkClass = "inline-flex min-h-11 items-center text-sm font-medium text-primary underline underline-offset-4 wrap-anywhere";
 
   async function search() {
@@ -29,7 +32,7 @@ export function WebResults({ trade, property }: { trade: Trade; property: Proper
         Search online for a local {tradeLabels[trade].toLowerCase()} company
       </Button>
       <div role="status" className="text-sm text-muted-foreground">
-        {pending ? "Searching online…" : response?.results.length === 0 ? "Nothing found online. reltix will find someone." : null}
+        {pending ? "Searching online…" : message}
       </div>
       {!pending && !!response?.results.length && (
         <ul className="space-y-2">

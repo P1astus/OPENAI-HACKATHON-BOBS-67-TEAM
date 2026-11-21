@@ -20,6 +20,24 @@ export function sendToHuman(t: Ticket, status: "needs_human" | "emergency", reas
   event(t, "agent", status, reason);
 }
 
+export function markManualAssignment(t: Ticket, actor: "owner" | "admin") {
+  t.triage ??= {
+    trade: null, urgency: t.status === "emergency" ? "emergency" : "normal", confidence: 0,
+    summary: "Repair assigned after manual review.", source: "rules", needs_human: false, reason: "",
+  };
+  t.triage.needs_human = false;
+  t.triage.reason = `Assigned manually by the ${actor}.`;
+}
+
+export function markCompanyUnavailable(t: Ticket, company: Company) {
+  const reason = `${company.name} is no longer available.`;
+  if (!t.appointment_at && (t.status === "matched" || t.status === "awaiting_owner")) {
+    t.proposed_slots = [];
+    sendToHuman(t, "needs_human", reason);
+  }
+  return reason;
+}
+
 export function lastCallEvent(ticket: Ticket) {
   for (let i = ticket.events.length - 1; i >= 0; i--) {
     const entry = ticket.events[i];

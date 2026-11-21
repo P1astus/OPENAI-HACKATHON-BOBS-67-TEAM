@@ -1,4 +1,5 @@
 import type { Company, Property, Ticket } from "../../types";
+import { berlinDate, BERLIN_TIME_ZONE } from "../time";
 
 /**
  * Start an outbound AI phone call to a company through ElevenLabs.
@@ -21,7 +22,7 @@ export function voiceConfigured(): boolean {
     && process.env.ELEVENLABS_PHONE_NUMBER_ID && process.env.VOICE_WEBHOOK_SECRET);
 }
 
-export function callVariables(ticket: Ticket, company: Company, property: Property) {
+export function callVariables(ticket: Ticket, company: Company, property: Property, attemptId?: string) {
   return {
     company_name: company.name,
     company_id: company.id,
@@ -29,12 +30,13 @@ export function callVariables(ticket: Ticket, company: Company, property: Proper
     street_and_postcode: `${property.address}, ${property.postcode}`,
     preferred_days: "the next three working days, between 8:00 and 17:00",
     ticket_id: ticket.id,
-    current_date: new Date().toISOString().slice(0, 10),
-    time_zone: "Europe/Berlin",
+    ...(attemptId ? { attempt_id: attemptId } : {}),
+    current_date: berlinDate(Date.now()),
+    time_zone: BERLIN_TIME_ZONE,
   };
 }
 
-export async function startCompanyCall(ticket: Ticket, company: Company, property: Property): Promise<CallResult> {
+export async function startCompanyCall(ticket: Ticket, company: Company, property: Property, attemptId: string): Promise<CallResult> {
   if (!voiceConfigured()) return { status: "not_configured" };
   // For the demo, VOICE_TEST_TO_NUMBER routes every call to the teammate playing the company.
   const to_number = process.env.VOICE_TEST_TO_NUMBER || company.phone;
@@ -48,7 +50,7 @@ export async function startCompanyCall(ticket: Ticket, company: Company, propert
         agent_id: process.env.ELEVENLABS_AGENT_ID,
         agent_phone_number_id: process.env.ELEVENLABS_PHONE_NUMBER_ID,
         to_number,
-        conversation_initiation_client_data: { dynamic_variables: callVariables(ticket, company, property) },
+        conversation_initiation_client_data: { dynamic_variables: callVariables(ticket, company, property, attemptId) },
       }),
       signal,
     });

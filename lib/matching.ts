@@ -69,6 +69,17 @@ export function optionsFor(property: Property, companies: Company[], trade: Trad
     }));
 }
 
+/** Score a manually selected company against the active candidates, even with a different trade. */
+export function manualCandidate(property: Property, companies: Company[], candidates: MatchCandidate[], company: Company, trade: Trade | null) {
+  const alternatives = companies.filter((c) => candidates.some(({ company_id }) => company_id === c.id));
+  const options = optionsFor(property, [...alternatives, company], null);
+  for (const option of options) {
+    option.est_cost_eur = candidates.find(({ company_id }) => company_id === option.company.id)?.est_cost_eur
+      ?? estimateCost(option.company, trade);
+  }
+  return rankOptions(options).find(({ company_id }) => company_id === company.id)!;
+}
+
 export type MatchResult = { candidates: MatchCandidate[]; pool: "partner" | "non_partner" | "none" };
 
 /**

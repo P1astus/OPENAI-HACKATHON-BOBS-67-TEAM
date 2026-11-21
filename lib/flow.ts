@@ -1,14 +1,15 @@
+import { randomUUID } from "node:crypto";
 import type {
   Company, CompanyRating, Invoice, Ticket, Trade, Triage,
 } from "../types";
 import { startCompanyCall, voiceConfigured } from "./agent/voice";
 import { triageClaim } from "./agent/triage";
-import { badRequest, notFound, requireState } from "./errors";
-import { estimateCost, matchCompanies, optionsFor, rankOptions } from "./matching";
+import { badRequest, conflict, notFound, requireState } from "./errors";
+import { manualCandidate, matchCompanies, optionsFor, rankOptions } from "./matching";
 import { notify } from "./notify";
 import { applyBlacklist, companyRating } from "./rating";
-import { getState, getTicketState, mutate, type State } from "./store";
-import { event, isUnscheduledMatch, sendToHuman, usesCalendar } from "./ticket-state";
+import { getState, getTicketState, mutate, type State, type VoiceAttempt } from "./store";
+import { event, isUnscheduledMatch, markCompanyUnavailable, markManualAssignment, sendToHuman, usesCalendar } from "./ticket-state";
 import { addDays, nowIso, roundMoney, workdaySlots } from "./time";
 
 export const OWNER_APPROVAL_ABOVE_EUR = 300;
@@ -61,10 +62,10 @@ export function filterInvoices(s: State, f: { owner_id?: string; tenant_id?: str
 }
 
 // ---------- matching + scheduling ----------
-type PendingCall = { ticket_id: string; company_id: string; eventCount: number } | null;
+type PendingCall = VoiceAttempt | null;
 
 /** Assign a company, then owner approval or slots. Returns a pending voice call for companies that book by phone. */
-function assignCompany(s: State, t: Ticket, company: Company, cost: number, actor: "agent" | "admin"): PendingCall {
+function assignCompany(s: State, t: Ticket, company: Company, cost: number, actor: "agent" | "admin" | "owner"): PendingCall {
   t.company_id = company.id;
   t.partner_type = company.is_partner ? "partner" : "non_partner";
   t.est_cost_eur = cost;
@@ -87,8 +88,16 @@ function proposeSlots(s: State, t: Ticket, company: Company): PendingCall {
   // Calendar partners: times come from their calendar. Everyone else (phone-booking partners and
   // non-partners) is called by the voice agent, which posts the agreed times back.
   if (!usesCalendar(company)) {
+    const history = s.voiceCalls[t.id] ??= { companies: [] };
+    const acceptsLegacyResult = !history.companies.includes(company.id);
+    if (acceptsLegacyResult) history.companies.push(company.id);
+    const attempt: VoiceAttempt = {
+      ticket_id: t.id, company_id: company.id, generation: s.generation,
+      attempt_id: randomUUID(), acceptsLegacyResult,
+    };
+    history.latest = attempt;
     event(t, "agent", "calling_company", `Calling ${company.name} to agree on a time.`);
-    return { ticket_id: t.id, company_id: company.id, eventCount: t.events.length };
+    return attempt;
   }
   proposeCalendarSlots(s, t, company);
   return null;
@@ -113,38 +122,61 @@ function proposeCalendarSlots(s: State, t: Ticket, company: Company) {
   }
 }
 
+function staleResult(action: string, ticketId: string) {
+  console.info(JSON.stringify({ at: action, ticket: ticketId, ignored: "stale result" }));
+}
+
+function requireGeneration(s: State, generation: number, id: string) {
+  if (s.generation === generation) return;
+  staleResult("ticket.reset", id);
+  throw conflict("The demo was reset. Please try again.");
+}
+
+function waitingTicket(s: State, call: VoiceAttempt) {
+  const t = s.tickets.find(({ id }) => id === call.ticket_id);
+  if (s.generation === call.generation && s.voiceCalls[call.ticket_id]?.latest?.attempt_id === call.attempt_id
+    && t && t.company_id === call.company_id && isUnscheduledMatch(t)) return t;
+  staleResult("voice.start", call.ticket_id);
+}
+
 /** After the state is saved: start the call (outside the store lock), then record the outcome. */
 async function runPendingCall(call: PendingCall): Promise<void> {
   if (!call) return;
   const s = await getState();
-  const t = findTicket(s, call.ticket_id);
+  const t = waitingTicket(s, call);
+  if (!t) return;
   const company = findCompany(s, call.company_id);
-  const waitingForThisCall = (ticket: Ticket) => isUnscheduledMatch(ticket)
-    && ticket.company_id === call.company_id && ticket.events.length === call.eventCount;
-  if (!waitingForThisCall(t)) return;
 
   if (!voiceConfigured()) {
     // Demo fallback until the ElevenLabs agent is connected: clearly labelled in the timeline.
     const slots = workdaySlots(Date.now(), 1, 1);
     await mutate((st) => {
-      if (!waitingForThisCall(findTicket(st, t.id))) return;
+      if (!waitingTicket(st, call)) return;
       recordVoiceResult(st, {
-        ticket_id: t.id, company_id: company.id, slots, summary: "Simulated call (voice agent not configured).",
+        ticket_id: t.id, company_id: company.id, attempt_id: call.attempt_id,
+        slots, summary: "Simulated call (voice agent not configured).",
       });
     });
     return;
   }
 
-  const result = await startCompanyCall(t, company, propertyOf(s, t));
+  const result = await startCompanyCall(t, company, propertyOf(s, t), call.attempt_id);
   await mutate((st) => {
-    const ticket = findTicket(st, call.ticket_id);
-    if (!waitingForThisCall(ticket)) return;
+    const ticket = waitingTicket(st, call);
+    if (!ticket) return;
     if (result.status === "started") {
       event(ticket, "agent", "call_started", `AI voice agent is on the phone with ${company.name}.`);
     } else {
       sendToHuman(ticket, "needs_human", `Couldn't reach ${company.name} by phone.`);
     }
   });
+}
+
+async function ticketAfterCall(id: string, generation: number, call: PendingCall) {
+  await runPendingCall(call);
+  const state = await getState();
+  requireGeneration(state, generation, id);
+  return findTicket(state, id);
 }
 
 // ---------- routes ----------
@@ -158,8 +190,9 @@ export async function createTicket(input: { tenant_id: string; unit_id: string; 
 
   const { triage } = await triageClaim(input.claim, { unit, property });
 
-  const id = `t_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+  const id = `t_${randomUUID()}`;
   const { result: call } = await mutate((s) => {
+    requireGeneration(s, before.generation, id);
     const created_at = nowIso();
     const t: Ticket = {
       id, unit_id: unit.id, tenant_id: tenant.id, created_at, claim: input.claim.trim(),
@@ -174,8 +207,7 @@ export async function createTicket(input: { tenant_id: string; unit_id: string; 
     return routeAfterTriage(s, t, triage);
   });
 
-  await runPendingCall(call);
-  return findTicket(await getState(), id);
+  return ticketAfterCall(id, before.generation, call);
 }
 
 function routeAfterTriage(s: State, t: Ticket, triage: Triage, clarified = false): PendingCall {
@@ -209,6 +241,7 @@ export async function clarifyTicket(id: string, note: string, actor: "owner" | "
   }, clarification);
 
   const { result: call } = await mutate((s) => {
+    requireGeneration(s, before.generation, id);
     const t = findTicket(s, id);
     requireState(t.status === previous.status && t.events.length === previous.events.length,
       "This ticket changed while it was being clarified. Try again.");
@@ -217,7 +250,8 @@ export async function clarifyTicket(id: string, note: string, actor: "owner" | "
       triage.needs_human = true;
       triage.reason = "A person must assign a company to this emergency.";
     }
-    const declinedSameTrade = t.owner_approval === "rejected" && triage.trade === t.triage?.trade;
+    const declinedSameTrade = triage.urgency !== "emergency"
+      && t.owner_approval === "rejected" && triage.trade === t.triage?.trade;
     t.triage = triage;
     event(t, actor, "clarified", clarification);
     event(t, "agent", "triaged", triageMessage(triage));
@@ -228,8 +262,7 @@ export async function clarifyTicket(id: string, note: string, actor: "owner" | "
     }
     return routeAfterTriage(s, t, triage, true);
   });
-  await runPendingCall(call);
-  return findTicket(await getState(), id);
+  return ticketAfterCall(id, before.generation, call);
 }
 
 function triageMessage(t: Triage): string {
@@ -238,24 +271,32 @@ function triageMessage(t: Triage): string {
   return `${t.summary} (${what}, ${t.urgency}; ${how}).`;
 }
 
-export async function assignTicket(id: string, company_id: string): Promise<Ticket> {
-  const { result: call } = await mutate((s) => {
+export async function assignTicket(id: string, company_id: string, actor: "owner" | "admin" = "admin"): Promise<Ticket> {
+  const { state, result: call } = await mutate((s) => {
     const t = findTicket(s, id);
     requireState(t.status === "needs_human" || t.status === "emergency" || isUnscheduledMatch(t), "This ticket isn't waiting for a company");
     const company = findCompany(s, company_id);
     requireState(company.status === "active", `${company.name} is removed and can't get jobs`);
-    const cost = t.candidates.find((c) => c.company_id === company.id)?.est_cost_eur ?? estimateCost(company, t.triage?.trade ?? null);
-    return assignCompany(s, t, company, cost, "admin");
+    let candidate = t.candidates.find((c) => c.company_id === company.id);
+    if (!candidate) {
+      candidate = manualCandidate(propertyOf(s, t), s.companies, t.candidates, company, t.triage?.trade ?? null);
+      t.candidates.push(candidate);
+    }
+    markManualAssignment(t, actor);
+    return assignCompany(s, t, company, candidate.est_cost_eur, actor);
   });
-  await runPendingCall(call);
-  return findTicket(await getState(), id);
+  return ticketAfterCall(id, state.generation, call);
 }
 
 export async function approveTicket(id: string, approved: boolean): Promise<Ticket> {
-  const { result: call } = await mutate((s) => {
+  const { state, result: call } = await mutate((s) => {
     const t = findTicket(s, id);
     requireState(t.status === "awaiting_owner" && t.owner_approval === "pending", "This ticket isn't waiting for owner approval");
     const company = findCompany(s, t.company_id!);
+    if (company.status !== "active") {
+      markCompanyUnavailable(t, company);
+      return null;
+    }
     if (!approved) {
       t.owner_approval = "rejected";
       event(t, "owner", "rejected", "The owner declined the estimate.");
@@ -267,20 +308,22 @@ export async function approveTicket(id: string, approved: boolean): Promise<Tick
     event(t, "owner", "approved", `The owner approved the €${t.est_cost_eur?.toFixed(2)} estimate.`);
     return proposeSlots(s, t, company);
   });
-  await runPendingCall(call);
-  return findTicket(await getState(), id);
+  return ticketAfterCall(id, state.generation, call);
 }
 
 export async function bookSlot(id: string, slot: string, data_shared: string[]): Promise<Ticket> {
   const { result } = await mutate((s) => {
     const t = findTicket(s, id);
+    const company = t.company_id ? findCompany(s, t.company_id) : null;
+    if (!t.appointment_at && company && company.status !== "active") {
+      return conflict(markCompanyUnavailable(t, company));
+    }
     const time = Date.parse(slot);
     const taken = t.company_id !== null && s.tickets.some((other) =>
       other.id !== t.id && other.company_id === t.company_id && other.appointment_at
       && Date.parse(other.appointment_at) === time);
     requireState(!taken, "That time was just taken. Please pick another.");
-    requireState(t.status === "matched" && (t.owner_approval === "not_needed" || t.owner_approval === "approved"), "This ticket can't be booked right now");
-    const company = findCompany(s, t.company_id!);
+    requireState(company !== null && t.status === "matched" && (t.owner_approval === "not_needed" || t.owner_approval === "approved"), "This ticket can't be booked right now");
     const offered = t.proposed_slots.some((p) => Date.parse(p) === time);
     requireState(offered && time > Date.now(), "This time is no longer available, pick another one");
 
@@ -299,6 +342,7 @@ export async function bookSlot(id: string, slot: string, data_shared: string[]):
     event(t, "tenant", "booked", `Appointment booked. Tenant agreed to share: ${shared}.`, at);
     return { t, company };
   });
+  if (result instanceof Error) throw result;
   void notify({ ticket_id: id, event: "booked", to: result.company.email, message: `New job booked for ${result.t.appointment_at}.` });
   return result.t;
 }
@@ -353,7 +397,12 @@ export async function rateTicket(id: string, rating: number): Promise<{ ticket: 
     const company_rating = companyRating(company);
     const score = company_rating.score === null ? `new, ${company_rating.review_count}/5 reviews` : `score ${company_rating.score.toFixed(2)}, ${company_rating.label}`;
     event(t, "tenant", "rated", `The tenant rated the repair ${rating}/10. ${company.name}: ${score}.`, at);
-    if (removed) event(t, "agent", "company_removed", `${company.name} dropped below -0.3 and was removed.`, at);
+    if (removed) {
+      event(t, "agent", "company_removed", `${company.name} dropped below -0.3 and was removed.`, at);
+      for (const other of s.tickets) {
+        if (other.company_id === company.id) markCompanyUnavailable(other, company);
+      }
+    }
     if (company_rating.potential_partner && !before.potential_partner) {
       event(t, "agent", "potential_partner", `${company.name} is now a potential partner.`, at);
     }
@@ -394,11 +443,25 @@ export async function payInvoice(id: string): Promise<Invoice> {
   return result;
 }
 
-export function recordVoiceResult(s: State, body: { ticket_id: string; company_id: string; slots: string[]; summary: string }) {
-  const t = findTicket(s, body.ticket_id);
-  const company = findCompany(s, body.company_id);
-  requireState(t.company_id === company.id, "This company isn't assigned to the ticket");
-  requireState(t.status === "matched" && t.proposed_slots.length === 0, "This ticket isn't waiting for a call result");
+export function recordVoiceResult(s: State, body: {
+  ticket_id: string; company_id: string; attempt_id?: string; slots: string[]; summary: string;
+}) {
+  const t = s.tickets.find(({ id }) => id === body.ticket_id);
+  const company = s.companies.find(({ id }) => id === body.company_id);
+  const history = s.voiceCalls[body.ticket_id];
+  const attempt = history?.latest;
+  const lastEvent = t?.events.at(-1)?.type;
+  const waiting = lastEvent === "calling_company" || lastEvent === "call_started";
+  const matches = attempt
+    ? attempt.generation === s.generation && attempt.company_id === body.company_id
+      && (body.attempt_id === undefined ? attempt.acceptsLegacyResult : attempt.attempt_id === body.attempt_id)
+    : s.generation === 0 && body.attempt_id === undefined;
+  if (!t || !company || company.status !== "active" || usesCalendar(company) || t.company_id !== company.id
+    || !isUnscheduledMatch(t) || !waiting || !matches) {
+    staleResult("voice.result", body.ticket_id);
+    throw conflict("This ticket isn't waiting for this call result.");
+  }
+  if (history) delete history.latest;
   const taken = bookedTimes(s, company.id);
   const slots = [...new Set(body.slots.map((x) => new Date(x).toISOString()))]
     .filter((x) => Date.parse(x) > Date.now() && !taken.has(Date.parse(x)))

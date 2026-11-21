@@ -89,18 +89,16 @@ export function RequestRow({ ticket, company, onPickTime }: {
 
 export function FinishedRepair({ ticket, company }: { ticket: Ticket; company?: CompanyView }) {
   const [rating, setRating] = useState(5);
-  const [submitted, setSubmitted] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const questionId = useId();
-  const savedRating = ticket.rating ?? submitted;
+  const savedRating = ticket.rating;
 
   async function submitRating() {
     if (busy || savedRating !== null) return;
     setBusy(true);
     try {
-      const result = await rateTicket(ticket.id, rating);
-      setSubmitted(result.ticket.rating);
-      void refreshAll();
+      await rateTicket(ticket.id, rating);
+      await refreshAll();
       toast.success("Thanks! Your rating helps other tenants.");
     } catch (err) {
       toast.error((err as Error).message);
