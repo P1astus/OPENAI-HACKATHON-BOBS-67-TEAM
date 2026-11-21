@@ -1,0 +1,8 @@
+{
+  "name": "centrix-fix-video",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "playwright": "1.65.1"
+  }
+}
