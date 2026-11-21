@@ -38,7 +38,7 @@ Owners pay a subscription, the service's only source of revenue. Partners and no
 | **2 · Calendar** | `GET /availability` and `POST /jobs` backed by its own calendar | Small calendar adapter | Reads free times, proposes a time, books it after tenant confirmation and gives the partner a portal or assisted channel for completion and invoices. |
 | **3 · Full API** | Level 2 endpoints, outbound status webhooks and invoice data | Calendar plus job and billing integration | Receives signed events, updates the timeline and links the invoice automatically. |
 
-WarmHaus Heizungstechnik and the other demo calendar partners illustrate Level 2 with simulated calendars. Schlüsseldienst am Markt illustrates Level 1. The demo models it as a **non-partner** and used a live call to a tester. Integration level identifies the channel. Commercial partner status controls matching priority and is set separately by reltix. The demo itself chooses calendar or voice based on commercial partner status. [Demo matching and booking contract](./contract.md) · [Recorded voice test](./voice-agent.md#8-test-scenarios)
+WarmHaus Heizungstechnik and the other calendar partners illustrate Level 2 with simulated calendars. **Hauswerk Aachen illustrates Level 1: a partner that takes bookings by phone.** The demo placed a live call with the voice agent (routed to a tester's phone). The demo chooses the channel by the partner's booking method: calendar partners offer calendar times, phone partners are called by the voice agent. Commercial partner status controls matching priority and is set separately by reltix. [Demo matching and booking contract](./contract.md) · [Recorded voice test](./voice-agent.md#8-test-scenarios)
 
 ## 4. Partner manifest
 
@@ -337,15 +337,15 @@ centrix ranks active companies that cover the trade and area. Eligible partners 
 }
 ```
 
-**Schlüsseldienst am Markt · phone-only.** An example registration for the company used in the documented voice test.
+**Hauswerk Aachen · phone-only partner.** An example registration for the partner used in the documented voice test.
 
 ```json
 {
-  "id": "c_schluessel",
-  "legal_name": "Schlüsseldienst am Markt",
-  "trades": ["locksmith", "windows_doors"],
-  "service_area": { "center": { "lat": 50.7774, "lng": 6.0834 }, "radius_km": 13 },
-  "pricing": { "hourly_rate_eur": 82, "callout_fee_eur": 38 },
+  "id": "c_hauswerk",
+  "legal_name": "Hauswerk Aachen",
+  "trades": ["general", "windows_doors", "plumbing", "electrical"],
+  "service_area": { "center": { "lat": 50.7659, "lng": 6.0695 }, "radius_km": 16 },
+  "pricing": { "hourly_rate_eur": 69, "callout_fee_eur": 40 },
   "integration_level": 1,
   "booking": { "phone": "<DISPATCH_PHONE>" },
   "required_job_fields": ["selected_slot", "contact.address"],
@@ -355,8 +355,8 @@ centrix ranks active companies that cover the trade and area. Eligible partners 
 }
 ```
 
-- **Trigger and trade.** A broken lock starts a locksmith job. A move-in can start a fibre and router installation. The trigger supplies the trade and a short job summary.
-- **Partner setup.** The installer serves postcodes at a fixed visit price and reports by API. The locksmith serves a radius at hourly rates and works by phone.
+- **Trigger and trade.** A balcony door that no longer closes starts a windows-and-doors job. A move-in can start a fibre and router installation. The trigger supplies the trade and a short job summary.
+- **Partner setup.** The installer serves postcodes at a fixed visit price and reports by API. The handyman partner serves a radius at hourly rates and works by phone.
 - **Shared flow.** Both use the same job reference, scoped booking confirmation, status meanings and invoice link to the unit.
 
 ## 14. Errors and edge cases
@@ -373,7 +373,7 @@ centrix ranks active companies that cover the trade and area. Eligible partners 
 
 ## 15. Assumptions
 
-- No real reltix API or resident records are available. The demo uses synthetic seed data, with in-memory state locally or Redis when configured. Partner calendars are simulated in centrix and non-partner discovery uses the seeded company list.
+- No real reltix API or resident records are available. The demo uses synthetic seed data, with in-memory state locally or Redis when configured. Partner calendars are simulated in centrix; phone-booking partners are reached by the voice agent (demo calls go to a tester's phone).
 - The documented live ElevenLabs call routes to a test phone. With voice configuration missing the demo labels the call as simulated. Callback deadlines, partner invoice submission via webhook and end-to-end confirmation delivery belong to the target integration.
 - The demo models one property manager and role-specific screens, with consent visibility in the interface. Production needs authenticated, scoped access and server-side field filtering. The demo marks invoices paid and tracks forwarding with invoice fields and timeline events. Real wallet settlement is outside the demo.
 - The examples use EUR and `Europe/Berlin` for local scheduling. API timestamps are UTC. Example details, domains and contact placeholders are synthetic. Real partners agree their service hours, coverage and dispatch process during onboarding. [Demo data and routes](./contract.md) · [Demo scope](./system-design.md#8-what-is-realistic-in-24-hours)
