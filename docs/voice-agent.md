@@ -2,11 +2,11 @@
 
 ## 1. What it does and when it runs
 
-The centrix Fix voice agent calls a repair company to collect appointment times and sends those times to the app for the tenant to choose. It runs when the matched company takes bookings by phone instead of an online calendar (for example the partner Hauswerk Aachen), after owner approval if the estimate exceeds €300. Non-partners without a calendar use the same path.
+The centrix Fix voice agent calls a repair company to collect appointment times and sends those times to the app for the tenant to choose. It runs when the matched company takes bookings by phone instead of an online calendar (for example the partner Hauswerk Aachen), after owner approval if the estimate exceeds €300. Automatic matching falls back to non-partners only when no eligible partner fits. The demo uses the voice path for non-partners and simulated slots for calendar partners.
 
 ## 2. Call flow
 
-1. **App.** centrix Fix matches the ticket to a company that books by phone and records `calling_company`. The ticket waits for a result with `proposed_slots: []`.
+1. **App.** centrix Fix selects a company for the phone path and records `calling_company`. The ticket waits for a result with `proposed_slots: []`.
 2. **ElevenLabs outbound call.** The server sends the call context to ElevenLabs, which dials through Twilio. If `VOICE_TEST_TO_NUMBER` is set, every call goes to the teammate playing the company.
 3. **Conversation.** The agent explains the repair, asks for concrete times, and repeats each weekday, date and local start time for confirmation. It aims for two or three slots and accepts one.
 4. **`submit_slots`.** The agent submits the confirmed start times in UTC and a one-sentence summary, then ends the call. For a refusal or a fully booked company it sends `slots: []`. On an answering machine it leaves no message, sends `slots: []` with the summary `Answering machine, no slots`, and ends the call.
@@ -17,11 +17,13 @@ If any of `ELEVENLABS_API_KEY`, `ELEVENLABS_AGENT_ID` or `ELEVENLABS_PHONE_NUMBE
 
 ## 3. Agent configuration
 
+These settings and the prompt are a setup template. The agent prompt and settings are managed in ElevenLabs.
+
 | Setting | Value |
 | --- | --- |
 | Platform | ElevenLabs Agents Platform |
 | Agent name | centrix repair booking |
-| Agent ID | `agent_2901m7x3a51gfz0800zrajfmtven` |
+| Agent ID | `<ELEVENLABS_AGENT_ID>` |
 | LLM | `gpt-4.1` |
 | Temperature | `0.2` |
 | Timezone | `Europe/Berlin` |
@@ -39,7 +41,7 @@ If any of `ELEVENLABS_API_KEY`, `ELEVENLABS_AGENT_ID` or `ELEVENLABS_PHONE_NUMBE
 
 ```text
 # Role
-You are the booking assistant of reltix property management. You phone a local repair company that is not yet a reltix partner, to book a repair job in a rented apartment. You speak English for this demo. Be polite, calm, brief and concrete. Keep the whole call under 2 minutes.
+You are the booking assistant of reltix property management. You call a repair company to collect appointment times for a repair in a rented apartment. You speak English for this demo. Be polite, calm, brief and concrete. Keep the whole call under 2 minutes.
 
 # The job (filled in for each call)
 - Company you are calling: {{company_name}}
@@ -55,11 +57,11 @@ Get 2 to 3 concrete appointment start times (day + start time) when the company 
 1. After your greeting, briefly say the job: what is wrong and the street and postcode. Ask when they could come.
 2. If they offer times, make each one concrete (weekday, date, start time). If they say "Monday morning", ask for a start time.
 3. Repeat the times back in one sentence and ask them to confirm, e.g. "So that's Monday 23 November at 9:00, and Tuesday 24 November at 14:00. Correct?"
-4. Say the tenant will choose one of the times through our app and the company gets a confirmation with the contact details. Thank them.
+4. Say the tenant will choose one of the times through our app and the company can see the approved contact details in the partner view after the tenant confirms. Thank them.
 5. Call the submit_slots tool once, with the confirmed times converted to UTC ISO 8601 (for example Monday 23 November 2026 at 09:00 Berlin time is 2026-11-23T08:00:00Z), and a one-sentence summary. Then say goodbye and end the call.
 
 # Rules
-- Privacy: never share the tenant's name, phone number, email, floor or access notes. If asked, say: "For privacy, the tenant's contact details are shared with you once they confirm one of the times through our app." Only the problem and the street and postcode may be shared.
+- Privacy: never share the tenant's name, phone number, email, floor or access notes. If asked, say: "For privacy, the tenant's contact details are shared with you once they confirm one of the times through our app." Share a repair summary without personal details and the street name and postcode. When the location variable includes a building number, leave it out of the spoken address.
 - Price: never promise or negotiate a price. If asked, say: "Your normal rates apply, and the property owner approves costs above 300 euros." 
 - If the company cannot do the job, is fully booked, or is not interested: thank them, call submit_slots with an empty slots list and a short summary, then end the call.
 - If you reach voicemail or an answering machine: do not leave any details. Call submit_slots with an empty slots list and the summary "Answering machine, no slots", then end the call.
@@ -73,9 +75,9 @@ The app sends all eight values with each outbound call. The examples use demo da
 
 | Name | Example | Source |
 | --- | --- | --- |
-| `company_name` | RheinService Haustechnik | Matched company's name |
-| `company_id` | `c_rheinservice` | Matched company's ID |
-| `problem_summary` | The heating does not work. | Ticket triage summary, with the fallback “A repair in an apartment” |
+| `company_name` | Hauswerk Aachen | Matched company's name |
+| `company_id` | `c_hauswerk` | Matched company's ID |
+| `problem_summary` | The balcony door does not close. | Ticket triage summary, with the fallback “A repair in an apartment” |
 | `street_and_postcode` | Musterstraße 12, 52062 Aachen | Property street address, postcode and city |
 | `preferred_days` | the next three working days, between 8:00 and 17:00 | Fixed preference in `callVariables` |
 | `ticket_id` | `t_…` | Repair ticket ID |
@@ -86,7 +88,7 @@ The app sends all eight values with each outbound call. The examples use demo da
 
 | Setting | Value |
 | --- | --- |
-| Tool ID | `tool_4201m7x39hfbe359k8q4eqznf25f` |
+| Tool ID | `<ELEVENLABS_TOOL_ID>` (assigned in the dashboard) |
 | Request | `POST https://centrix-fix.vercel.app/api/agent/voice-result` |
 | Headers | `Content-Type: application/json` and `x-webhook-secret: <VOICE_WEBHOOK_SECRET>`. The secret is a static header value in the tool configuration. |
 | Response timeout | 20 s |
@@ -123,7 +125,7 @@ At 09:00 in Berlin in winter, the UTC time is 08:00Z.
 ```json
 {
   "ticket_id": "t_…",
-  "company_id": "c_rheinservice",
+  "company_id": "c_hauswerk",
   "slots": ["2026-11-23T08:00:00Z", "2026-11-23T13:00:00Z", "2026-11-24T10:00:00Z"],
   "summary": "Offered Mon 09:00, Mon 14:00 and Tue 11:00; normal rates apply."
 }
@@ -146,9 +148,9 @@ The app sends `POST https://api.elevenlabs.io/v1/convai/twilio/outbound-call` wi
   "to_number": "<DESTINATION_PHONE_NUMBER>",
   "conversation_initiation_client_data": {
     "dynamic_variables": {
-      "company_name": "RheinService Haustechnik",
-      "company_id": "c_rheinservice",
-      "problem_summary": "The heating does not work.",
+      "company_name": "Hauswerk Aachen",
+      "company_id": "c_hauswerk",
+      "problem_summary": "The balcony door does not close.",
       "street_and_postcode": "Musterstraße 12, 52062 Aachen",
       "preferred_days": "the next three working days, between 8:00 and 17:00",
       "ticket_id": "t_…",
@@ -163,23 +165,23 @@ The provider response has `success` (boolean), `message` (string), and optional 
 
 ## 7. Privacy and consent
 
-- Before consent, the agent shares only the problem summary and the street and postcode as repair details. The call also covers appointment preferences. Keep tenant identifiers out of the problem summary.
+- The prompt limits spoken repair context to the repair summary, street name and postcode. The app sends the triage summary and building address to ElevenLabs, plus booking context. The model is instructed to omit identifiers from the summary. The app does not separately redact that free text.
 - If asked for the tenant's name, phone, email, floor or access notes, the agent declines and explains that contact details are shared after the tenant confirms a slot in the app. If asked who is calling, it says it is an AI assistant calling on behalf of reltix property management.
-- Tenant name, phone number and access notes can be shared only after the tenant confirms a slot and consents in the app. The ticket records which fields the tenant agreed to share, when, and through which channel. The prototype's booking notification to the company contains the appointment time. [Ticket flow](../lib/flow.ts)
+- The partner view shows tenant name, phone number, full address and access notes after the tenant confirms a slot and consents to those fields in the app. The ticket records which fields the tenant agreed to share, when, and through which channel. The prototype's booking notification to the company contains the appointment time. [Ticket flow](../lib/flow.ts)
 - On an answering machine, the agent leaves no message.
 
 ## 8. Test scenarios
 
-Final demo call (20 Nov, used in the pitch video): tenant reported "The balcony door doesn't close properly anymore, the handle is loose" → windows/doors → matched to the phone-booking partner Hauswerk Aachen → the agent called (routed to a tester's phone), collected Monday 09:00 and 14:00 → times appeared in the tenant app → booked.
+Final demo call (used in the pitch video): tenant reported "The balcony door doesn't close properly anymore, the handle is loose" → windows/doors → matched to the phone-booking partner Hauswerk Aachen → the agent called (routed to a tester's phone), collected Monday 09:00 and 14:00 → times appeared in the tenant app → booked.
 
-Earlier test: End-to-end live test (20 Nov): tenant reported "locked out, key broke" → AI triage locksmith (urgent, 99%) → no partner covers locksmith → app called the non-partner Schlüsseldienst am Markt via ElevenLabs + Twilio (routed to the tester's phone by `VOICE_TEST_TO_NUMBER`) → agent collected Monday 09:00 and 14:00 → `submit_slots` posted to the live API → times appeared in the tenant app → tenant booked with consent.
+Earlier fallback test (20 Nov): tenant reported "locked out, key broke" → AI triage locksmith (urgent, 99%) → no partner covers locksmith → app called the non-partner Schlüsseldienst am Markt via ElevenLabs + Twilio (routed to the tester's phone by `VOICE_TEST_TO_NUMBER`) → agent collected Monday 09:00 and 14:00 → `submit_slots` posted to the live API → times appeared in the tenant app → tenant booked with consent.
 
 
 Each submitted payload includes the same ticket and company IDs from the call context.
 
-| What the plumber says | Expected agent behaviour | Expected payload | Status |
+| What the repair company says | Expected agent behaviour | Expected payload | Status |
 | --- | --- | --- | --- |
-| “Monday 23 November at 09:00 or 14:00, or Tuesday 24 November at 11:00.” | Repeat all three Berlin times, confirm them, and submit once. | Three slots and the summary from section 5. | **passed** (live call, 20 Nov: two slots offered, submitted as `2026-11-23T08:00:00Z` and `2026-11-23T13:00:00Z`, tenant booked) |
+| “Monday 23 November at 09:00 or 14:00, or Tuesday 24 November at 11:00.” | Repeat all three Berlin times, confirm them, and submit once. | Three slots and the summary from section 5. | Two-slot variant passed in the documented live test. Three-slot variant remains to rehearse. |
 | “Only Wednesday 25 November at 10:00 next week.” | Confirm the date and time and accept the single slot. | `slots: ["2026-11-25T09:00:00Z"]` and a one-sentence summary. | to rehearse |
 | “We're fully booked.” | Thank the company, submit the empty result, then end the call. | `slots: []` and a summary such as “The company is fully booked.” | to rehearse |
 | “What should we charge?” | Say normal rates apply and the property owner approves costs above €300. Return to collecting times without agreeing a price. | No payload for the question alone. Submit confirmed slots and an outcome summary once the company responds about availability. | to rehearse |
@@ -194,13 +196,13 @@ Each submitted payload includes the same ticket and company IDs from the call co
 | Accents, background noise and date recognition | The agent may mishear a weekday or time. It asks for a concrete start time and repeats the weekday, date and time for confirmation. |
 | Timezone conversion | The agent may apply the wrong Berlin offset around daylight-saving changes. The server validates ISO 8601 and normalizes timestamps to UTC. A valid timestamp can still encode the wrong hour. |
 | Answering machines | A recorded greeting can sound like a person. The prompt instructs the agent to submit zero slots and hang up without leaving a message when it detects voicemail. |
-| Twilio limits | Our account is on full access (no trial restrictions), but every destination country must be enabled in Voice geo permissions. On a trial account, outbound calls can reach only verified recipients. Verify the teammate's number before rehearsing. [Twilio trial restriction](https://www.twilio.com/docs/api/errors/14111) |
+| Twilio limits | Check Twilio Voice geo permissions for the destination. On a trial account, outbound calls can reach only verified recipients. Verify the teammate’s number before rehearsing. [Twilio trial restriction](https://www.twilio.com/docs/api/errors/14111) |
 | Requests outside the script | If the company needs details the agent cannot provide, the call may produce no slots and require a property manager to follow up. |
 | Latency and missing callbacks | Dialling, turn-taking and the webhook can take time. A ticket can remain `matched` with zero slots if the call starts but no callback arrives. The app has a start-request timeout and currently has no callback deadline. |
 
 ## 10. Plan B for the stage
 
-Open the [ElevenLabs browser test link](https://elevenlabs.io/app/talk-to?agent_id=agent_2901m7x3a51gfz0800zrajfmtven) and have a teammate play the plumber. Append the eight URL-encoded parameters below. Use synthetic repair details and the IDs of a demo ticket and its assigned company if you want the webhook to attach slots. The ticket must be `matched` with no proposed slots. [ElevenLabs URL parameter format](https://elevenlabs.io/docs/eleven-agents/customization/personalization/dynamic-variables)
+Open the configured agent’s browser test link in ElevenLabs and have a teammate play the repair company. Append the eight URL-encoded parameters below. Use synthetic repair details and the IDs of a demo ticket and its assigned company if you want the webhook to attach slots. The ticket must be `matched` with no proposed slots. [ElevenLabs URL parameter format](https://elevenlabs.io/docs/eleven-agents/customization/personalization/dynamic-variables)
 
 ```text
 &var_company_name=<COMPANY_NAME>
@@ -213,13 +215,13 @@ Open the [ElevenLabs browser test link](https://elevenlabs.io/app/talk-to?agent_
 &var_time_zone=<TIME_ZONE>
 ```
 
-For the manual fallback, an admin can open a ticket in `needs_human` or `emergency` in `/admin` and assign an active company. Assigning a partner uses its calendar. Assigning a company that books by phone uses the voice flow again. [Admin ticket view](../app/admin/_components/ticket-sheet.tsx) · [Ticket flow](../lib/flow.ts)
+For the manual fallback, an owner or admin can open a ticket in `needs_human` or `emergency` in their view and assign an active company. Calendar partners use their calendar. Phone-booking partners and non-partners use the voice path. [Admin ticket view](../app/admin/_components/ticket-sheet.tsx) · [Ticket flow](../lib/flow.ts)
 
 ## 11. Setup checklist
 
 - [ ] To recreate the setup, create the agent with section 3's settings, first message and prompt. Add the eight dynamic variables and enable `end_call`.
 - [ ] Create and attach the `submit_slots` webhook tool using section 5's schema, variable bindings, static header and timeout.
-- [x] **Twilio connected (20 Nov).** US number imported in ElevenLabs as "centrix demo", linked to the agent; voice geo permissions on for the Netherlands and Poland. In ElevenLabs go to **Phone Numbers → Import → Twilio**, import a Twilio number and link it to the agent. Enter the Twilio Account SID and Auth Token in the dashboard only. For trial use, verify the phone number of the teammate playing the company. [ElevenLabs Twilio import guide](https://elevenlabs.io/docs/eleven-agents/phone-numbers/twilio-integration/native-integration)
+- [x] **Twilio connected (20 Nov).** The team imported a Twilio number into ElevenLabs and linked it to the agent for the recorded demo. In ElevenLabs go to **Phone Numbers → Import → Twilio**, import a Twilio number and link it to the agent. Enter the Twilio Account SID and Auth Token in the dashboard only. For trial use, verify the phone number of the teammate playing the company. [ElevenLabs Twilio import guide](https://elevenlabs.io/docs/eleven-agents/phone-numbers/twilio-integration/native-integration)
 - [ ] Set the server-only variables in the Vercel project and redeploy. Keep local copies in teammates' `.env.local` files only.
 - [ ] Verify the webhook with the curl check below. Then rehearse the live call scenarios with the verified demo recipient.
 
@@ -237,7 +239,7 @@ Run this with `VOICE_WEBHOOK_SECRET` set in your shell from the configured value
 curl -i -X POST 'https://centrix-fix.vercel.app/api/agent/voice-result' \
   -H 'Content-Type: application/json' \
   -H "x-webhook-secret: ${VOICE_WEBHOOK_SECRET}" \
-  --data '{"ticket_id":"t_unknown_test","company_id":"c_rheinservice","slots":[],"summary":"Webhook test."}'
+  --data '{"ticket_id":"t_unknown_test","company_id":"c_hauswerk","slots":[],"summary":"Webhook test."}'
 ```
 
 ## 12. Connector for the next partner

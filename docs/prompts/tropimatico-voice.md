@@ -1,5 +1,7 @@
 # Prompt: Tropimatico — voice agent and messages
 
+> Historical: the task prompt used on Fri 20 Nov. Some details changed later; see [README.md](../../README.md) and [docs/system-design.md](../system-design.md) for the final product.
+
 Paste everything below the line into Claude (chat or Claude Code). Most of this job happens in the ElevenLabs dashboard, so ask Claude to walk you through it step by step.
 
 ---

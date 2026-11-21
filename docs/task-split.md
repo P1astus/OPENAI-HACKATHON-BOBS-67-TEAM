@@ -1,5 +1,7 @@
 # Task split
 
+> Historical: the task split used on Fri 20 Nov. Some details changed later; see [README.md](../README.md) and [docs/system-design.md](system-design.md) for the final product.
+
 Who builds what for the repair matching app. Product: [system-design.md](./system-design.md). Screens: [ui-plan.md](./ui-plan.md).
 
 Antoni does all UI because only Antoni has the Vercel / v0 connection.

@@ -10,9 +10,9 @@ The hand-in video for BuilderBase → Hand in → **Pitch Video** (limit 2:30). 
 | 2 | 0:09 | `/demo` with all four views: tenant, partner, owner, reltix operations | Voice-over 2 |
 | 3 | 0:18 | Lena reports "The heating is cold in every room since this morning." → AI triage → WarmHaus (partner, calendar) → she picks a time and confirms consent → all screens update | Voice-over 3 |
 | 4 | 0:32 | Lena reports "The balcony door doesn't close properly anymore, the handle is loose." → matched to **Hauswerk Aachen, a partner that books by phone** → "calling Hauswerk Aachen for times" | Voice-over 4 |
-| 5 | 0:40 | **Real phone call, uncut** (iPad camera): the ElevenLabs voice agent calls the partner, describes the job (no tenant data), the partner offers Monday 9:00 and 14:00, the agent confirms. Label: "Real phone call · AI voice agent ↔ Hauswerk Aachen, a centrix partner that books by phone" + subtitles | Original call audio |
+| 5 | 0:40 | **Real phone call, uncut** (iPad camera): the ElevenLabs voice agent calls the partner, describes the job and gives the synthetic building address (no tenant contact or access details), the partner offers Monday 9:00 and 14:00, the agent confirms. Label: "Real phone call · AI voice agent ↔ Hauswerk Aachen, a centrix partner that books by phone" + subtitles | Original call audio |
 | 6 | 1:33 | The two times from the call appear in Lena's app; she books one | Voice-over 5 |
-| 7 | 1:40 | Partner clicks the green **Mark as done** (€95) → paid from the owner's wallet → Lena rates 9/10 → the partner's score updates | Voice-over 6a (at "done"), 6b (at the rating) |
+| 7 | 1:40 | Partner clicks the green **Mark as done** for the seeded radiator job and sends a €95 invoice → wallet payment appears → Lena rates her separate completed heating repair 9/10 → the partner's score updates | Voice-over 6a (at "done"), 6b (at the rating) |
 | 8 | 1:55 | Unclear request ("Something in the hallway seems wrong") → owner types "Called Lena: the hallway radiator is ice cold." → re-triaged → WarmHaus matched | Voice-over 7 |
 | 9 | 2:08 | Slide "One connector, three levels": phone only · calendar · full API, consent first | Voice-over 8 |
 | 10 | 2:19 | End card: "Owners pay a subscription. Companies pay nothing." · centrix-fix.vercel.app · team | Voice-over 9 |
@@ -37,7 +37,7 @@ The hand-in video for BuilderBase → Hand in → **Pitch Video** (limit 2:30). 
 4. **Slides:** `scripts/video/cards.mjs` renders the title, connector and end cards (dark theme).
 5. **Edit:** `scripts/video/assemble.py` (ffmpeg + Pillow) cuts the scenes to the voice-over, speeds up waiting (max 2×), inserts the call clip with subtitles and concatenates everything to ≤ 2:30.
 
-See `scripts/video/README.md` for the commands.
+See the [recording guide](../scripts/video/README.md) for the commands.
 
 ## Honest notes
 - The phone call is real (live app → ElevenLabs → Twilio → a real phone). In the demo, calls are routed to a team member's phone, who plays the partner company.

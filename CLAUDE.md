@@ -2,7 +2,7 @@
 
 Context for Claude Code and teammates. Read fully before changing anything.
 
-**Status (Fri Nov 20, afternoon):** the challenge is revealed: we're in the **reltix track, "Plug a Partner into centrix"** (section 3a). Our product is decided: **repair matching**. Something breaks in an apartment, we find the best company to fix it, book it with the tenant, bill the owner and rate the company afterwards. The full design is in [docs/system-design.md](docs/system-design.md); read it before building. The tech stack is not chosen yet and there is no app code.
+**Status (Sat Nov 21):** centrix Fix is the working repair-matching prototype for the **reltix track, “Plug a Partner into centrix”** (section 3a). The [live demo](https://centrix-fix.vercel.app/demo) shows tenant, partner, owner and reltix operations together. See the [README](README.md) for setup and the demo walkthrough, and the [system design](docs/system-design.md) for the final workflow and product decisions.
 
 Repo: https://github.com/P1astus/OPENAI-HACKATHON-BOBS-67-TEAM
 
@@ -104,11 +104,9 @@ reltix judging (this decides the track prize):
 - If we use a framework that changed recently (for example Next.js), check its bundled or official docs before using unfamiliar APIs.
 
 ## 7. Current code
-- [docs/system-design.md](docs/system-design.md): the agreed design (flow, matching formula, rating and promotion rules, business model, demo path). Change it only after the team agrees, and update it when a decision changes.
-- [docs/ui-plan.md](docs/ui-plan.md): the UI spec for the four views (tenant, partner, owner, admin), Apple-style look, stack (Next.js + Tailwind + shadcn/ui, v0 + Vercel) and build order.
-- [docs/task-split.md](docs/task-split.md): who builds what, file ownership and order of work.
-- [docs/contract.md](docs/contract.md): data shapes and API every area builds against (owner: armaNKataria).
-- [docs/prompts/](docs/prompts/): detailed task prompt per person.
-- No app code yet. Next step: choose the stack, set it up in one commit, then everyone branches from it.
+- Next.js 16 App Router, TypeScript, Tailwind v4, shadcn/ui and SWR polling power the four views in `app/` and the combined `/demo`.
+- `app/api/` and `lib/` implement triage with OpenAI, partner-first matching, consent and booking, simulated wallet payment, and rating. ElevenLabs Agents and Twilio handle phone availability. Upstash Redis shares state on Vercel, and Vitest covers the main workflow.
+- [System design](docs/system-design.md), [UI plan](docs/ui-plan.md) and [API contract](docs/contract.md) describe the app. [Connector spec](docs/connector-spec.md) covers partner integration and [voice agent](docs/voice-agent.md) covers the phone flow.
+- [Task split](docs/task-split.md) and [task prompts](docs/prompts/) record Friday’s assignments. [Pitch video](docs/pitch-video.md) documents the final recording.
 
 The old starter app (agent loop, dashboard, n8n workflow, `/pivot` and `/preflight` skills) and its project setup were deleted. They are still in git history (commits `4652e83` and `1fdf803`) if a piece is ever useful, but we do not build on them.

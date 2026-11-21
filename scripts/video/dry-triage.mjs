@@ -10,10 +10,10 @@ const fixtures = [
     summary: "Heating has been cold in every room since this morning.",
   },
   {
-    suffix: "Report: I'm locked out, the key broke off in the front door lock.",
-    trade: "locksmith",
-    urgency: "urgent",
-    summary: "Key broke off in the front door lock, leaving the flat inaccessible.",
+    suffix: "Report: The balcony door doesn't close properly anymore, the handle is loose.",
+    trade: "windows_doors",
+    urgency: "normal",
+    summary: "The balcony door no longer closes properly, and its handle is loose.",
   },
   {
     suffix: "Clarification from the owner: Called Lena: the hallway radiator is ice cold.",

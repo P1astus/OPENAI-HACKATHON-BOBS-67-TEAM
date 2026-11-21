@@ -50,8 +50,8 @@ for (const u of state.units) {
   check(u.tenant_id === null || people.get(u.tenant_id)?.role === "tenant", `units ${u.id}: tenant_id ${u.tenant_id} isn't a tenant in people`);
 }
 for (const c of state.companies) {
-  check(!c.is_partner || c.booking === "calendar", `companies ${c.id}: partners must have booking "calendar"`);
-  check(c.is_partner || c.calendar_slots.length === 0, `companies ${c.id}: only partners have calendar_slots`);
+  check(!c.is_partner || c.booking !== "website", `companies ${c.id}: partners book by "calendar" or "phone"`);
+  check((c.is_partner && c.booking === "calendar") || c.calendar_slots.length === 0, `companies ${c.id}: only calendar partners have calendar_slots`);
 }
 const unitById = new Map(state.units.map((u) => [u.id, u]));
 for (const t of state.tickets) {

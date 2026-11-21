@@ -1,5 +1,7 @@
 # Prompt: armaNKataria — backend, rules and AI triage
 
+> Historical: the task prompt used on Fri 20 Nov. Some details changed later; see [README.md](../../README.md) and [docs/system-design.md](../system-design.md) for the final product.
+
 Paste everything below the line into Claude Code (or Codex) at the repo root, after Antoni's setup commit is on `main`.
 
 ---

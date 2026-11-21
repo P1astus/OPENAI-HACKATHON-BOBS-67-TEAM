@@ -2,7 +2,7 @@
 
 ## 1. In one paragraph
 
-The centrix Fix connector gives service companies one way to receive, book and close jobs from centrix. When something breaks in an apartment, the tenant reports it in centrix, the best eligible company gets a prefilled job, and the tenant books a time in one tap. centrix writes the appointment, outcome, invoice and feedback back to the unit. A partner can start with a phone number and add calendar or API access later while keeping the same job lifecycle. [Track brief](../CLAUDE.md#3a-our-track-reltix-plug-a-partner-into-centrix) · [System design](./system-design.md)
+The centrix Fix connector gives service companies one way to receive, book and close jobs from centrix. When something breaks in an apartment, the tenant reports it in centrix, centrix selects the best eligible company, and the tenant confirms an offered time and what to share. centrix writes the appointment, outcome, invoice and feedback back to the unit. A partner can start with a phone number and add calendar or API access later while keeping the same job lifecycle. [Track brief](../CLAUDE.md#3a-our-track-reltix-plug-a-partner-into-centrix) · [System design](./system-design.md)
 
 ```text
 Tenant reports repair → centrix triages, matches and checks owner approval
@@ -16,7 +16,7 @@ Emergency, no match or failed handoff → property manager
 | Ticket lifecycle, approval, consent and rating | Implemented in demo | centrix routes and screens, consent recorded on booking, field visibility in the partner view and automated rating rules. |
 | Calendar availability and booking | Implemented in demo (simulated) | centrix reads and updates its own `calendar_slots`. |
 | Phone availability | Implemented in demo (live) | ElevenLabs calls a tester standing in for the company. `POST /api/agent/voice-result` received the slots in the documented live test. |
-| Partner manifest, external availability and jobs APIs, `POST /api/partner-events` | Specified (target) | The manifest, partner-hosted endpoints and centrix event receiver below define the real integration. The demo has no `/api/partner-events` route. |
+| Partner manifest, external availability and jobs APIs, `POST /api/partner-events` | Specified (target) | The manifest, partner-hosted endpoints and centrix event receiver below define the proposed integration. |
 | Invoice and wallet | Implemented in demo (simulated) | Invoice linked to the unit and marked paid. Real settlement belongs to reltix finance. |
 
 ## 2. What a partner gets and gives
@@ -89,7 +89,7 @@ Money is expressed as EUR numbers with up to two decimal places. The demo estima
 
 - Send the registered trade, an inclusive `from` and exclusive `to`, and coordinates for the service area check. Use a coarse point such as the postcode centroid before confirmation. centrix checks exact coverage internally and uses the registered postcodes for postcode-based partners.
 - Return unique, free appointment start times as ISO 8601 UTC strings ending in `Z`. Return an empty `slots` array if none are available. The partner applies its working hours and capacity for the trade in its local timezone.
-- centrix shows the first three free slots in chronological order, at least two hours ahead. A returned time is a proposal. The partner reserves the time atomically on confirmation. In the demo, seeded calendars use workdays at 09:00, 11:00 and 14:00 Berlin time, and the code filters strictly beyond the two-hour cutoff. [Calendar data](./contract.md#where-the-data-lives) · [Slot selection](../lib/flow.ts)
+- centrix shows up to three free slots in chronological order, more than two hours ahead. A returned time is a proposal. The partner reserves the time atomically on confirmation. In the demo, seeded calendars use workdays at 09:00, 11:00 and 14:00 Berlin time, and the code filters strictly beyond the two-hour cutoff. [Calendar data](./contract.md#where-the-data-lives) · [Slot selection](../lib/flow.ts)
 
 ```json
 {
@@ -102,7 +102,7 @@ Money is expressed as EUR numbers with up to two decimal places. The demo estima
 ```json
 {
   "ticket_id": "t_voice_example",
-  "company_id": "c_schluessel",
+  "company_id": "c_hauswerk",
   "slots": ["2026-11-23T08:00:00Z", "2026-11-23T13:00:00Z"],
   "summary": "Offered Monday at 09:00 and 14:00 Berlin time."
 }
@@ -163,7 +163,7 @@ Both stages return a 2xx with the same job ID. A confirm succeeds only after the
 { "job_id": "job_warmhaus_001" }
 ```
 
-At Level 1, the call plays the role of an offer. Confirm the selected time through the agreed channel after the tenant confirms it. In the demo, the booked notification contains the appointment time and the partner view shows permitted fields. External confirmation and scoped API delivery are target behavior. [Booking flow](../lib/flow.ts) · [Partner view](../app/partner/_components/partner-jobs.tsx)
+At Level 1, the call plays the role of an offer. Confirm the selected time through the agreed channel after the tenant confirms it. In the demo, the optional n8n booking notification contains the appointment time and the partner view shows permitted fields. External confirmation and scoped API delivery are target behavior. [Booking flow](../lib/flow.ts) · [Partner view](../app/partner/_components/partner-jobs.tsx)
 
 ## 7. Status updates back to centrix
 
@@ -236,7 +236,7 @@ For `status: "invoiced"`, attach an `invoice` object. centrix links it to the ex
 }
 ```
 
-The finished job is paid from the owner's centrix wallet when the invoice is linked. The partner receives the full amount. Forwarding changes who pays the charge within centrix and leaves the company invoice amount intact. reltix finance handles company settlement terms, such as 30 days. The demo `Invoice` has an internal `due_at` field. Payment terms are outside the connector. [Invoice type](../types.ts) · [Invoice lifecycle](./contract.md#ticket-lifecycle)
+The finished job is paid from the owner's centrix wallet when the invoice is linked. The partner receives the full amount. Forwarding changes who pays the charge within centrix and leaves the company invoice amount intact. reltix finance handles company settlement terms, such as 30 days, and accounting. The demo API retains a legacy `due_at` field. [Invoice type](../types.ts) · [Invoice lifecycle](./contract.md#ticket-lifecycle)
 
 ## 9. Result written to the unit
 
@@ -279,8 +279,8 @@ centrix stores the internal job result against the unit and resolves its propert
 ## 10. Consent and privacy (GDPR)
 
 - **Before confirmation.** Personal fields stay in centrix. Strip names, contact details, building numbers, unit information and photos from offer and call text. Share only the repair summary and street/postcode as repair context, with a coarse location for availability. A street and postcode can still be identifying in context. The voice prompt refuses tenant contact or access details and leaves no voicemail. The demo passes the seeded building address and triage summary into the call context. Strict street-only output and free-text redaction are target safeguards. [Voice implementation](../lib/agent/voice.ts) · [Voice prompt](./voice-agent.md)
-- **At confirmation.** Show the company, purpose and fields to the tenant. Intersect the tenant's choices with the manifest scopes and the minimum needed for the job. Record `data_shared`, `given_at` and `channel` on the ticket. The demo records that choice and gates the partner view. Its booking schema also supports `email` and has no `photos` field. [Demo booking schema](../lib/schemas.ts) · [Partner view](../app/partner/_components/partner-jobs.tsx)
-- **Use and retention.** Use job data for scheduling, access, service and billing. Restrict access to staff handling the job. Delete contact details and photos after completion and required follow-up, and retain only legally required invoice data for the applicable statutory period. Keep personal details out of logs and webhook status messages. [GDPR Article 5](https://eur-lex.europa.eu/eli/reg/2016/679/oj/eng/)
+- **At confirmation.** Show the company, purpose and fields to the tenant. Intersect the tenant's choices with the manifest scopes and the minimum needed for the job. Record `data_shared`, `given_at` and `channel` on the ticket. The demo records consent for the fields displayed at confirmation and gates field visibility in the partner view. Its booking schema also supports `email` and has no `photos` field. [Demo booking schema](../lib/schemas.ts) · [Partner view](../app/partner/_components/partner-jobs.tsx)
+- **Use and retention (target).** Use job data for scheduling, access, service and billing. Restrict access to staff handling the job. Delete contact details and photos after completion and required follow-up, and retain only legally required invoice data for the applicable statutory period. Keep personal details out of logs and webhook status messages. [GDPR Article 5](https://eur-lex.europa.eu/eli/reg/2016/679/oj/eng/)
 - **Legal basis and roles.** For necessary tenancy-repair processing, use GDPR Article 6(1)(b) where the tenant is party to the contract and processing is necessary for its performance. The booking consent record documents the tenant's sharing choices for transparency. Before go-live, establish who determines the purposes for each activity. A provider acting only on instructions needs Article 28 processor terms. A company deciding its own billing or statutory retention may be a controller for that activity. [GDPR Articles 4, 6 and 28](https://eur-lex.europa.eu/eli/reg/2016/679/oj/eng/)
 - **Calls.** The target agent discloses that it is AI and who it represents at the start, with recording off by default. The documented demo prompt identifies the assistant and discloses AI when asked. Recording settings are outside the application code. [Voice agent configuration](./voice-agent.md#3-agent-configuration)
 
@@ -300,7 +300,7 @@ A tenant can leave one whole-number rating from 1 to 10 after the repair is invo
 | Good | Score strictly above 0.4. A higher score raises the reviews component in matching. |
 | Neutral | Score from −0.3 to 0.4 inclusive. Company remains eligible. |
 | Bad | Score strictly below −0.3 with at least five reviews. Automatically removed from future matching. |
-| Potential partner | Non-partner with a Good score, at least three reviews strictly above 6, and at least as many good reviews (above 5) as bad reviews (below 5). A rating of 5 counts toward neither total. reltix can approach the company for a deal. |
+| Potential partner | Non-partner with a Good score, at least three reviews strictly above 6, and at least as many good reviews (above 5) as bad reviews (below 5). A rating of 5 counts toward neither total. The demo exposes this as a rating flag in operations. |
 
 centrix ranks active companies that cover the trade and area. Eligible partners form the first pool. If none qualify, centrix ranks eligible non-partners. The formula is **0.5 × reviews + 0.3 × price + 0.2 × distance**. Reviews are rescaled to 0–1 and a new company gets 0.5. Within the pool, cheapest and closest each get 1, highest and farthest each get 0, and an all-equal dimension gets 1. The demo estimate is callout plus hourly rate times typical labour hours for the trade. Above €300, the owner must approve the estimate before booking proceeds. At €300 or below, centrix proceeds automatically if triage and matching allow it. Emergencies and cases with no match go to the property manager. [Matching](../lib/matching.ts) · [Rating](../lib/rating.ts) · [Ticket flow](../lib/flow.ts)
 
@@ -376,4 +376,4 @@ centrix ranks active companies that cover the trade and area. Eligible partners 
 - No real reltix API or resident records are available. The demo uses synthetic seed data, with in-memory state locally or Redis when configured. Partner calendars are simulated in centrix; phone-booking partners are reached by the voice agent (demo calls go to a tester's phone).
 - The documented live ElevenLabs call routes to a test phone. With voice configuration missing the demo labels the call as simulated. Callback deadlines, partner invoice submission via webhook and end-to-end confirmation delivery belong to the target integration.
 - The demo models one property manager and role-specific screens, with consent visibility in the interface. Production needs authenticated, scoped access and server-side field filtering. The demo marks invoices paid and tracks forwarding with invoice fields and timeline events. Real wallet settlement is outside the demo.
-- The examples use EUR and `Europe/Berlin` for local scheduling. API timestamps are UTC. Example details, domains and contact placeholders are synthetic. Real partners agree their service hours, coverage and dispatch process during onboarding. [Demo data and routes](./contract.md) · [Demo scope](./system-design.md#8-what-is-realistic-in-24-hours)
+- The examples use EUR and `Europe/Berlin` for local scheduling. Use UTC in connector payloads. Example details, domains and contact placeholders are synthetic. Real partners agree their service hours, coverage and dispatch process during onboarding. [Demo data and routes](./contract.md) · [Demo scope](./system-design.md#8-what-is-realistic-in-24-hours)

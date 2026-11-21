@@ -1,7 +1,7 @@
 # MAIN Summit hackathon (team MAIN 08)
 See [CLAUDE.md](./CLAUDE.md) for the schedule, how we work, and the git and security rules.
 
-We're in the reltix track, building repair matching. The design is in [docs/system-design.md](./docs/system-design.md). Stack: Next.js (App Router) + TypeScript + Tailwind + shadcn/ui + swr, deployed on Vercel.
+centrix Fix is the repair-matching prototype for the reltix track, “Plug a Partner into centrix.” See the [README](./README.md) for setup and the [system design](./docs/system-design.md) for the repair flow. The stack is Next.js 16 App Router, TypeScript, Tailwind v4, shadcn/ui, SWR polling, OpenAI, ElevenLabs Agents with Twilio, Upstash Redis on Vercel, and Vitest.
 
 <!-- BEGIN:nextjs-agent-rules -->
 
