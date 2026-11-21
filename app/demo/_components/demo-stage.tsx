@@ -103,7 +103,7 @@ export function DemoStage() {
                 current={step.pane === id}
                 focused={isFocused}
                 hidden={focused !== null && !isFocused && !phone}
-                className={isFocused ? (phone ? "col-span-3 row-span-2" : "col-span-2 row-span-2") : layout}
+                className={isFocused ? (phone ? "col-span-3 row-span-2 w-full max-w-[660px] justify-self-center" : "col-span-2 row-span-2") : layout}
                 onToggleFocus={() => setFocused((pane) => pane === id ? null : id)}
               />
             );

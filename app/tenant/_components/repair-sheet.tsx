@@ -5,7 +5,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { EmptyState, ErrorBlock, formatDateTime, formatSlot, LoadingBlock, Money, PartnerPill, RatingMeter } from "@/components/index";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { bookSlot, createTicket, type CompanyView } from "@/lib/api-client";
+import { ApiError, bookSlot, createTicket, type CompanyView } from "@/lib/api-client";
 import { refreshAll, useCompanies, useTicket } from "@/lib/hooks";
 import type { Ticket, Unit } from "@/types";
 import { isCallingCompany } from "./repair-activity";
@@ -84,6 +84,7 @@ function RepairFlow({
   const [reported, setReported] = useState<Ticket>();
   const [step, setStep] = useState(0);
   const [sendError, setSendError] = useState("");
+  const [mayBeProcessing, setMayBeProcessing] = useState(false);
   const result = useRef<HTMLDivElement>(null);
   const snapshot = reported ?? initialTicket;
   const ticketQuery = useTicket(snapshot?.id);
@@ -91,8 +92,8 @@ function RepairFlow({
   const ticket = ticketQuery.data ?? snapshot;
 
   useEffect(() => {
-    if (reported) result.current?.focus();
-  }, [reported]);
+    if (reported || mayBeProcessing) result.current?.focus();
+  }, [reported, mayBeProcessing]);
 
   async function send(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -108,12 +109,26 @@ function RepairFlow({
       onReported();
       void refreshAll();
     } catch (err) {
-      setSendError((err as Error).message);
+      if (err instanceof ApiError && (err.status === 408 || err.status === 504)) {
+        setMayBeProcessing(true);
+        onReported();
+        void refreshAll();
+      } else {
+        setSendError((err as Error).message);
+      }
     } finally {
       clearTimeout(matching);
       clearTimeout(waiting);
       setBusy(false);
     }
+  }
+
+  if (mayBeProcessing) {
+    return (
+      <div ref={result} tabIndex={-1} className="rounded-xl bg-primary/8 p-4 outline-none">
+        <p role="status">Your report may still be processing. Check My requests.</p>
+      </div>
+    );
   }
 
   if (ticket) {

@@ -1,15 +1,14 @@
 import type { Company, Property, Ticket } from "../../types";
 
 /**
- * Start an outbound AI phone call to a non-partner company through ElevenLabs.
+ * Start an outbound AI phone call to a company through ElevenLabs.
  *
  * Endpoint and dynamic variable names follow ElevenLabs' Twilio outbound-call API. Tropimatico's
  * docs/voice-agent.md is the source of truth: if it differs, change it here.
  *
- * Privacy: only the problem summary, street + postcode, preferred days and the ticket id are sent.
- * No tenant name or phone number before the tenant has given consent.
+ * The repair context consists of the summary and the building's street address and postcode.
  */
-const CALL_TIMEOUT_MS = 10_000;
+const CALL_TIMEOUT_MS = 8_000;
 const ENDPOINT = "https://api.elevenlabs.io/v1/convai/twilio/outbound-call";
 
 export type CallResult =
@@ -18,7 +17,8 @@ export type CallResult =
   | { status: "failed"; error: string };
 
 export function voiceConfigured(): boolean {
-  return Boolean(process.env.ELEVENLABS_API_KEY && process.env.ELEVENLABS_AGENT_ID && process.env.ELEVENLABS_PHONE_NUMBER_ID);
+  return Boolean(process.env.ELEVENLABS_API_KEY && process.env.ELEVENLABS_AGENT_ID
+    && process.env.ELEVENLABS_PHONE_NUMBER_ID && process.env.VOICE_WEBHOOK_SECRET);
 }
 
 export function callVariables(ticket: Ticket, company: Company, property: Property) {
@@ -26,7 +26,7 @@ export function callVariables(ticket: Ticket, company: Company, property: Proper
     company_name: company.name,
     company_id: company.id,
     problem_summary: ticket.triage?.summary ?? "A repair in an apartment",
-    street_and_postcode: `${property.address}, ${property.postcode} ${property.city}`,
+    street_and_postcode: `${property.address}, ${property.postcode}`,
     preferred_days: "the next three working days, between 8:00 and 17:00",
     ticket_id: ticket.id,
     current_date: new Date().toISOString().slice(0, 10),
@@ -39,6 +39,7 @@ export async function startCompanyCall(ticket: Ticket, company: Company, propert
   // For the demo, VOICE_TEST_TO_NUMBER routes every call to the teammate playing the company.
   const to_number = process.env.VOICE_TEST_TO_NUMBER || company.phone;
   const started = Date.now();
+  const signal = AbortSignal.timeout(CALL_TIMEOUT_MS);
   try {
     const response = await fetch(ENDPOINT, {
       method: "POST",
@@ -49,9 +50,10 @@ export async function startCompanyCall(ticket: Ticket, company: Company, propert
         to_number,
         conversation_initiation_client_data: { dynamic_variables: callVariables(ticket, company, property) },
       }),
-      signal: AbortSignal.timeout(CALL_TIMEOUT_MS),
+      signal,
     });
     const body = (await response.json().catch(() => ({}))) as { success?: boolean; conversation_id?: string; message?: string };
+    signal.throwIfAborted();
     console.info(JSON.stringify({ at: "voice.start", ticket: ticket.id, http: response.status, ok: response.ok, latency_ms: Date.now() - started }));
     if (!response.ok || body.success === false) return { status: "failed", error: `ElevenLabs returned ${response.status}` };
     return { status: "started", conversation_id: body.conversation_id ?? null };

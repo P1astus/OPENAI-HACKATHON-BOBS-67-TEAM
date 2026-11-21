@@ -1,4 +1,4 @@
-import { ChevronRight, Home, LayoutDashboard, Smartphone, Wrench } from "lucide-react";
+import { ArrowRight, ChevronRight, Home, LayoutDashboard, Smartphone, Wrench } from "lucide-react";
 import Link from "next/link";
 import { PageHeader } from "@/components/index";
 import { ResetDemoButton } from "./admin/_components/reset-demo-button";
@@ -20,6 +20,14 @@ export default function HomePage() {
       <main className="fade-in mx-auto w-full max-w-7xl px-4 pt-2 pb-12 sm:px-6">
         <nav aria-label="Demo views">
           <ul className="grid gap-4 sm:grid-cols-2">
+            <li className="sm:col-span-2">
+              <Link href="/demo" prefetch={false}
+                className="shadow-soft group flex min-h-24 items-center gap-4 rounded-[14px] bg-primary px-5 py-6 text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:px-7">
+                <LayoutDashboard aria-hidden="true" className="size-6 shrink-0" />
+                <span className="flex-1 text-xl font-semibold tracking-tight">Open all four views side by side</span>
+                <ArrowRight aria-hidden="true" className="size-5 shrink-0 transition-transform group-hover:translate-x-0.5" />
+              </Link>
+            </li>
             {views.map(({ name, description, href, icon: Icon }) => (
               <li key={href} className="min-w-0">
                 <Link

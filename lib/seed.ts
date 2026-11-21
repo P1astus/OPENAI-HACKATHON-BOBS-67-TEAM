@@ -15,6 +15,15 @@ export type State = {
 };
 
 export const SEED_FILES = ["properties", "units", "people", "companies", "tickets", "invoices"] as const;
+const berlinWeekday = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Berlin", weekday: "short" });
+
+function previousWorkday(from: number, hour: number): string {
+  for (let offset = -1; ; offset--) {
+    const time = berlinTime(from, offset, hour);
+    const day = berlinWeekday.format(Date.parse(time));
+    if (day !== "Sat" && day !== "Sun") return time;
+  }
+}
 
 /**
  * Seed state. If all six `data/*.json` files exist (valoi2's data) they are used.
@@ -58,8 +67,6 @@ function refreshCalendars(state: State, now = Date.now()) {
 
 export function builtinSeed(now = Date.now()): State {
   const at = (days: number) => addDays(now, days);
-  const berlinWeekday = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Berlin", weekday: "short" }).format(now);
-  const lastWorkday = berlinWeekday === "Mon" ? -3 : berlinWeekday === "Sun" ? -2 : -1;
 
   const properties: Property[] = [
     { id: "prop_muster", address: "Musterstraße 12", postcode: "52062", city: "Aachen", lat: 50.7753, lng: 6.0839, building_year: 1962, heating: "Gas central heating" },
@@ -146,12 +153,12 @@ export function builtinSeed(now = Date.now()): State {
       return t;
     }
     t.proposed_slots = s.appointmentAt ? [s.appointmentAt]
-      : s.invoice ? workdaySlots(Date.parse(s.invoice.issued_at), -1, 1)
+      : s.invoice ? [previousWorkday(Date.parse(s.invoice.issued_at), 9)]
       : chosen.calendar_slots.slice(0, 3);
     t.appointment_at = t.proposed_slots[0];
     t.consent = { data_shared: ["name", "phone", "address", "access_notes"], given_at: m(20), channel: "portal" };
     t.events.push(
-      { at: m(3), actor: "agent", type: "slots_proposed", message: s.appointmentAt ? "An appointment time was offered." : "Three appointment times were offered." },
+      { at: m(3), actor: "agent", type: "slots_proposed", message: t.proposed_slots.length === 1 ? "An appointment time was offered." : "Three appointment times were offered." },
       { at: m(20), actor: "tenant", type: "booked", message: "Appointment booked and contact sharing approved." },
     );
     if (s.appointmentAt || s.invoice) {
@@ -188,7 +195,7 @@ export function builtinSeed(now = Date.now()): State {
       claim: "The living room radiator makes a loud knocking noise when the heating starts.",
       summary: "Radiator knocking in the living room; bleed and check the valve.",
       trade: "heating", status: "scheduled", options: ["c_warmhaus", "c_thermoplus"], chosen: "c_warmhaus",
-      appointmentAt: berlinTime(now, lastWorkday, 10),
+      appointmentAt: previousWorkday(now, 10),
     }),
   ];
 

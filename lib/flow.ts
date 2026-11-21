@@ -1,5 +1,5 @@
 import type {
-  Company, CompanyRating, Invoice, Ticket, TicketEvent, Trade, Triage,
+  Company, CompanyRating, Invoice, Ticket, Trade, Triage,
 } from "../types";
 import { startCompanyCall, voiceConfigured } from "./agent/voice";
 import { triageClaim } from "./agent/triage";
@@ -7,7 +7,8 @@ import { badRequest, notFound, requireState } from "./errors";
 import { estimateCost, matchCompanies, optionsFor, rankOptions } from "./matching";
 import { notify } from "./notify";
 import { applyBlacklist, companyRating } from "./rating";
-import { getState, mutate, type State } from "./store";
+import { getState, getTicketState, mutate, type State } from "./store";
+import { event, isUnscheduledMatch, sendToHuman, usesCalendar } from "./ticket-state";
 import { addDays, nowIso, roundMoney, workdaySlots } from "./time";
 
 export const OWNER_APPROVAL_ABOVE_EUR = 300;
@@ -26,19 +27,6 @@ const findUnit = (s: State, id: string) => byId(s.units, id, "Unit");
 const findInvoice = (s: State, id: string) => byId(s.invoices, id, "Invoice");
 const propertyOf = (s: State, t: Ticket) => byId(s.properties, findUnit(s, t.unit_id).property_id, "Property");
 const ownerOf = (s: State, t: Ticket) => byId(s.people, findUnit(s, t.unit_id).owner_id, "Owner");
-
-function event(t: Ticket, actor: TicketEvent["actor"], type: string, message: string, at = nowIso()) {
-  t.events.push({ at, actor, type, message });
-}
-
-function sendToHuman(t: Ticket, status: "needs_human" | "emergency", reason: string) {
-  t.status = status;
-  if (t.triage) {
-    t.triage.needs_human = true;
-    t.triage.reason = t.triage.reason ? `${t.triage.reason} ${reason}`.trim() : reason;
-  }
-  event(t, "agent", status, reason);
-}
 
 /** Candidate list for the admin panel when nothing auto-matched: every active company for the trade, radius ignored. */
 function suggestionsFor(s: State, t: Ticket, trade: Trade | null) {
@@ -73,7 +61,7 @@ export function filterInvoices(s: State, f: { owner_id?: string; tenant_id?: str
 }
 
 // ---------- matching + scheduling ----------
-type PendingCall = { ticket_id: string; company_id: string } | null;
+type PendingCall = { ticket_id: string; company_id: string; eventCount: number } | null;
 
 /** Assign a company, then owner approval or slots. Returns a pending voice call for companies that book by phone. */
 function assignCompany(s: State, t: Ticket, company: Company, cost: number, actor: "agent" | "admin"): PendingCall {
@@ -98,22 +86,31 @@ function assignCompany(s: State, t: Ticket, company: Company, cost: number, acto
 function proposeSlots(s: State, t: Ticket, company: Company): PendingCall {
   // Calendar partners: times come from their calendar. Everyone else (phone-booking partners and
   // non-partners) is called by the voice agent, which posts the agreed times back.
-  if (!company.is_partner || company.booking !== "calendar") {
+  if (!usesCalendar(company)) {
     event(t, "agent", "calling_company", `Calling ${company.name} to agree on a time.`);
-    return { ticket_id: t.id, company_id: company.id };
+    return { ticket_id: t.id, company_id: company.id, eventCount: t.events.length };
   }
-  const taken = new Set(s.tickets.filter((x) => x.company_id === company.id && x.appointment_at).map((x) => x.appointment_at));
+  proposeCalendarSlots(s, t, company);
+  return null;
+}
+
+function bookedTimes(s: State, companyId: string) {
+  return new Set(s.tickets.filter((t) => t.company_id === companyId && t.appointment_at)
+    .map((t) => Date.parse(t.appointment_at!)));
+}
+
+function proposeCalendarSlots(s: State, t: Ticket, company: Company) {
+  const taken = bookedTimes(s, company.id);
   const earliest = Date.now() + SLOT_LEAD_MS;
   t.proposed_slots = company.calendar_slots
-    .filter((slot) => Date.parse(slot) > earliest && !taken.has(slot))
-    .sort()
+    .filter((slot) => Date.parse(slot) > earliest && !taken.has(Date.parse(slot)))
+    .sort((a, b) => Date.parse(a) - Date.parse(b))
     .slice(0, SLOTS_OFFERED);
   if (t.proposed_slots.length) {
     event(t, "agent", "slots_proposed", `${t.proposed_slots.length} free times from ${company.name}'s calendar offered to the tenant.`);
   } else {
-    sendToHuman(t, "needs_human", `${company.name} has no free calendar slots.`);
+    sendToHuman(t, "needs_human", `No free times left in ${company.name}'s calendar.`);
   }
-  return null;
 }
 
 /** After the state is saved: start the call (outside the store lock), then record the outcome. */
@@ -122,20 +119,26 @@ async function runPendingCall(call: PendingCall): Promise<void> {
   const s = await getState();
   const t = findTicket(s, call.ticket_id);
   const company = findCompany(s, call.company_id);
+  const waitingForThisCall = (ticket: Ticket) => isUnscheduledMatch(ticket)
+    && ticket.company_id === call.company_id && ticket.events.length === call.eventCount;
+  if (!waitingForThisCall(t)) return;
 
   if (!voiceConfigured()) {
     // Demo fallback until the ElevenLabs agent is connected: clearly labelled in the timeline.
     const slots = workdaySlots(Date.now(), 1, 1);
-    await mutate((st) => recordVoiceResult(st, {
-      ticket_id: t.id, company_id: company.id, slots, summary: "Simulated call (voice agent not configured).",
-    }));
+    await mutate((st) => {
+      if (!waitingForThisCall(findTicket(st, t.id))) return;
+      recordVoiceResult(st, {
+        ticket_id: t.id, company_id: company.id, slots, summary: "Simulated call (voice agent not configured).",
+      });
+    });
     return;
   }
 
   const result = await startCompanyCall(t, company, propertyOf(s, t));
   await mutate((st) => {
     const ticket = findTicket(st, call.ticket_id);
-    if (ticket.status !== "matched" || ticket.company_id !== call.company_id) return;
+    if (!waitingForThisCall(ticket)) return;
     if (result.status === "started") {
       event(ticket, "agent", "call_started", `AI voice agent is on the phone with ${company.name}.`);
     } else {
@@ -197,7 +200,7 @@ function routeAfterTriage(s: State, t: Ticket, triage: Triage, clarified = false
 }
 
 export async function clarifyTicket(id: string, note: string, actor: "owner" | "admin"): Promise<Ticket> {
-  const before = await getState();
+  const before = await getTicketState();
   const previous = findTicket(before, id);
   requireState(previous.status === "needs_human" || previous.status === "emergency", "This ticket isn't waiting for clarification");
   const clarification = note.trim();
@@ -214,9 +217,15 @@ export async function clarifyTicket(id: string, note: string, actor: "owner" | "
       triage.needs_human = true;
       triage.reason = "A person must assign a company to this emergency.";
     }
+    const declinedSameTrade = t.owner_approval === "rejected" && triage.trade === t.triage?.trade;
     t.triage = triage;
     event(t, actor, "clarified", clarification);
     event(t, "agent", "triaged", triageMessage(triage));
+    if (declinedSameTrade) {
+      triage.reason = "";
+      sendToHuman(t, "needs_human", "The owner declined the estimate. Assign a company manually.");
+      return null;
+    }
     return routeAfterTriage(s, t, triage, true);
   });
   await runPendingCall(call);
@@ -232,7 +241,7 @@ function triageMessage(t: Triage): string {
 export async function assignTicket(id: string, company_id: string): Promise<Ticket> {
   const { result: call } = await mutate((s) => {
     const t = findTicket(s, id);
-    requireState(t.status === "needs_human" || t.status === "emergency", "This ticket isn't waiting for a company");
+    requireState(t.status === "needs_human" || t.status === "emergency" || isUnscheduledMatch(t), "This ticket isn't waiting for a company");
     const company = findCompany(s, company_id);
     requireState(company.status === "active", `${company.name} is removed and can't get jobs`);
     const cost = t.candidates.find((c) => c.company_id === company.id)?.est_cost_eur ?? estimateCost(company, t.triage?.trade ?? null);
@@ -265,22 +274,26 @@ export async function approveTicket(id: string, approved: boolean): Promise<Tick
 export async function bookSlot(id: string, slot: string, data_shared: string[]): Promise<Ticket> {
   const { result } = await mutate((s) => {
     const t = findTicket(s, id);
+    const time = Date.parse(slot);
+    const taken = t.company_id !== null && s.tickets.some((other) =>
+      other.id !== t.id && other.company_id === t.company_id && other.appointment_at
+      && Date.parse(other.appointment_at) === time);
+    requireState(!taken, "That time was just taken. Please pick another.");
     requireState(t.status === "matched" && (t.owner_approval === "not_needed" || t.owner_approval === "approved"), "This ticket can't be booked right now");
     const company = findCompany(s, t.company_id!);
-    const iso = new Date(slot).toISOString();
-    const offered = t.proposed_slots.some((p) => Date.parse(p) === Date.parse(iso));
-    const taken = s.tickets.some((x) => x.id !== t.id && x.company_id === company.id && x.appointment_at && Date.parse(x.appointment_at) === Date.parse(iso));
-    requireState(offered && Date.parse(iso) > Date.now() && !taken, "This time is no longer available, pick another one");
+    const offered = t.proposed_slots.some((p) => Date.parse(p) === time);
+    requireState(offered && time > Date.now(), "This time is no longer available, pick another one");
 
     const at = nowIso();
-    t.appointment_at = iso;
+    t.appointment_at = new Date(time).toISOString();
     t.consent = { data_shared: [...new Set(data_shared)], given_at: at, channel: "portal" };
     t.status = "scheduled";
-    company.calendar_slots = company.calendar_slots.filter((x) => Date.parse(x) !== Date.parse(iso));
+    company.calendar_slots = company.calendar_slots.filter((x) => Date.parse(x) !== time);
     for (const other of s.tickets) {
-      if (other.id !== t.id && other.status === "matched" && other.company_id === company.id) {
-        other.proposed_slots = other.proposed_slots.filter((x) => Date.parse(x) !== Date.parse(iso));
-      }
+      if (other.status !== "matched" || other.appointment_at || other.company_id !== company.id
+        || !other.proposed_slots.some((x) => Date.parse(x) === time)) continue;
+      other.proposed_slots = other.proposed_slots.filter((x) => Date.parse(x) !== time);
+      if (usesCalendar(company)) proposeCalendarSlots(s, other, company);
     }
     const shared = t.consent.data_shared.length ? t.consent.data_shared.join(", ").replaceAll("_", " ") : "nothing";
     event(t, "tenant", "booked", `Appointment booked. Tenant agreed to share: ${shared}.`, at);
@@ -304,6 +317,10 @@ export async function completeTicket(id: string, amount_eur: number): Promise<{ 
   const { result } = await mutate((s) => {
     const t = findTicket(s, id);
     requireState(t.status === "scheduled", "Only a scheduled job can be completed");
+    if (t.est_cost_eur !== null) {
+      requireState(amount_eur <= OWNER_APPROVAL_ABOVE_EUR || amount_eur <= t.est_cost_eur * 1.25,
+        `The amount is well above the approved estimate (€${t.est_cost_eur.toFixed(2)}). Ask the owner before invoicing.`);
+    }
     const unit = findUnit(s, t.unit_id);
     const owner = ownerOf(s, t);
     const at = nowIso();
@@ -382,7 +399,7 @@ export function recordVoiceResult(s: State, body: { ticket_id: string; company_i
   const company = findCompany(s, body.company_id);
   requireState(t.company_id === company.id, "This company isn't assigned to the ticket");
   requireState(t.status === "matched" && t.proposed_slots.length === 0, "This ticket isn't waiting for a call result");
-  const taken = new Set(s.tickets.filter((x) => x.company_id === company.id && x.appointment_at).map((x) => Date.parse(x.appointment_at!)));
+  const taken = bookedTimes(s, company.id);
   const slots = [...new Set(body.slots.map((x) => new Date(x).toISOString()))]
     .filter((x) => Date.parse(x) > Date.now() && !taken.has(Date.parse(x)))
     .sort();

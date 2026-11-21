@@ -13,7 +13,7 @@ The centrix Fix voice agent calls a repair company to collect appointment times 
 5. **centrix Fix API.** The webhook validates the result, normalizes and deduplicates the times, drops past or already booked times, and stores up to three sorted `proposed_slots`. If no usable times remain, or if the outbound request fails, the ticket moves to `needs_human` for the property manager.
 6. **Tenant.** The tenant picks a proposed slot with one tap and confirms it in the app. The app schedules the repair and records consent for the data shared with the company.
 
-If any of `ELEVENLABS_API_KEY`, `ELEVENLABS_AGENT_ID` or `ELEVENLABS_PHONE_NUMBER_ID` is missing, the app simulates the call and labels it in the ticket timeline.
+If any of `ELEVENLABS_API_KEY`, `ELEVENLABS_AGENT_ID`, `ELEVENLABS_PHONE_NUMBER_ID` or `VOICE_WEBHOOK_SECRET` is missing, the app simulates the call and labels it in the ticket timeline.
 
 ## 3. Agent configuration
 
@@ -54,14 +54,14 @@ You are the booking assistant of reltix property management. You call a repair c
 Get 2 to 3 concrete appointment start times (day + start time) when the company can come, ideally within the preferred times. One time is acceptable if that is all they offer.
 
 # How the call goes
-1. After your greeting, briefly say the job: what is wrong and the street and postcode. Ask when they could come.
+1. After your greeting, briefly give the repair summary and the building's street address and postcode. Ask when they could come.
 2. If they offer times, make each one concrete (weekday, date, start time). If they say "Monday morning", ask for a start time.
 3. Repeat the times back in one sentence and ask them to confirm, e.g. "So that's Monday 23 November at 9:00, and Tuesday 24 November at 14:00. Correct?"
 4. Say the tenant will choose one of the times through our app and the company can see the approved contact details in the partner view after the tenant confirms. Thank them.
 5. Call the submit_slots tool once, with the confirmed times converted to UTC ISO 8601 (for example Monday 23 November 2026 at 09:00 Berlin time is 2026-11-23T08:00:00Z), and a one-sentence summary. Then say goodbye and end the call.
 
 # Rules
-- Privacy: never share the tenant's name, phone number, email, floor or access notes. If asked, say: "For privacy, the tenant's contact details are shared with you once they confirm one of the times through our app." Share a repair summary without personal details and the street name and postcode. When the location variable includes a building number, leave it out of the spoken address.
+- Privacy: keep the unit, floor, tenant name, phone number, email and access notes private. If asked, say: "For privacy, the tenant's contact details are shared with you once they confirm one of the times through our app." Share the repair summary without personal details and the building's street address, including the building number, and postcode.
 - Price: never promise or negotiate a price. If asked, say: "Your normal rates apply, and the property owner approves costs above 300 euros." 
 - If the company cannot do the job, is fully booked, or is not interested: thank them, call submit_slots with an empty slots list and a short summary, then end the call.
 - If you reach voicemail or an answering machine: do not leave any details. Call submit_slots with an empty slots list and the summary "Answering machine, no slots", then end the call.
@@ -78,7 +78,7 @@ The app sends all eight values with each outbound call. The examples use demo da
 | `company_name` | Hauswerk Aachen | Matched company's name |
 | `company_id` | `c_hauswerk` | Matched company's ID |
 | `problem_summary` | The balcony door does not close. | Ticket triage summary, with the fallback “A repair in an apartment” |
-| `street_and_postcode` | Musterstraße 12, 52062 Aachen | Property street address, postcode and city |
+| `street_and_postcode` | Musterstraße 12, 52062 | Building street address and postcode |
 | `preferred_days` | the next three working days, between 8:00 and 17:00 | Fixed preference in `callVariables` |
 | `ticket_id` | `t_…` | Repair ticket ID |
 | `current_date` | `2026-11-20` | Server's current UTC date in `YYYY-MM-DD` |
@@ -151,7 +151,7 @@ The app sends `POST https://api.elevenlabs.io/v1/convai/twilio/outbound-call` wi
       "company_name": "Hauswerk Aachen",
       "company_id": "c_hauswerk",
       "problem_summary": "The balcony door does not close.",
-      "street_and_postcode": "Musterstraße 12, 52062 Aachen",
+      "street_and_postcode": "Musterstraße 12, 52062",
       "preferred_days": "the next three working days, between 8:00 and 17:00",
       "ticket_id": "t_…",
       "current_date": "2026-11-20",
@@ -161,11 +161,11 @@ The app sends `POST https://api.elevenlabs.io/v1/convai/twilio/outbound-call` wi
 }
 ```
 
-The provider response has `success` (boolean), `message` (string), and optional `conversation_id` and `callSid` strings. The app reads `success` and returns `conversation_id` when provided. The request times out after 10 s. A timeout, request error, non-2xx response or explicit `success: false` sends the ticket to `needs_human`. [ElevenLabs outbound-call API](https://elevenlabs.io/docs/eleven-agents/api-reference/integrations/twilio/outbound-call) · [Ticket flow](../lib/flow.ts)
+The provider response has `success` (boolean), `message` (string), and optional `conversation_id` and `callSid` strings. The app reads `success` and returns `conversation_id` when provided. The request times out after 8 s. A timeout, request error, non-2xx response or explicit `success: false` sends the ticket to `needs_human`. [ElevenLabs outbound-call API](https://elevenlabs.io/docs/eleven-agents/api-reference/integrations/twilio/outbound-call) · [Ticket flow](../lib/flow.ts)
 
 ## 7. Privacy and consent
 
-- The prompt limits spoken repair context to the repair summary, street name and postcode. The app sends the triage summary and building address to ElevenLabs, plus booking context. The model is instructed to omit identifiers from the summary. The app does not separately redact that free text.
+- Before consent, the call shares the repair summary and the building's street address and postcode. The unit, floor, tenant name, phone number, email and access notes stay private. The app passes this context and scheduling metadata to ElevenLabs. The prompt instructs the agent to omit personal details from the spoken summary.
 - If asked for the tenant's name, phone, email, floor or access notes, the agent declines and explains that contact details are shared after the tenant confirms a slot in the app. If asked who is calling, it says it is an AI assistant calling on behalf of reltix property management.
 - The partner view shows tenant name, phone number, full address and access notes after the tenant confirms a slot and consents to those fields in the app. The ticket records which fields the tenant agreed to share, when, and through which channel. The prototype's booking notification to the company contains the appointment time. [Ticket flow](../lib/flow.ts)
 - On an answering machine, the agent leaves no message.
@@ -198,7 +198,7 @@ Each submitted payload includes the same ticket and company IDs from the call co
 | Answering machines | A recorded greeting can sound like a person. The prompt instructs the agent to submit zero slots and hang up without leaving a message when it detects voicemail. |
 | Twilio limits | Check Twilio Voice geo permissions for the destination. On a trial account, outbound calls can reach only verified recipients. Verify the teammate’s number before rehearsing. [Twilio trial restriction](https://www.twilio.com/docs/api/errors/14111) |
 | Requests outside the script | If the company needs details the agent cannot provide, the call may produce no slots and require a property manager to follow up. |
-| Latency and missing callbacks | Dialling, turn-taking and the webhook can take time. A ticket can remain `matched` with zero slots if the call starts but no callback arrives. The app has a start-request timeout and currently has no callback deadline. |
+| Latency and missing callbacks | Dialling, turn-taking and the webhook can take time. Ticket reads and mutations send an unbooked phone match with no slots to `needs_human` more than four minutes after its latest call event. |
 
 ## 10. Plan B for the stage
 

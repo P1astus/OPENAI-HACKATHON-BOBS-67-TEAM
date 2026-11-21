@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import useSWR, { mutate } from "swr";
+import useSWR, { mutate, type SWRResponse } from "swr";
 import {
   getBootstrap,
   getCompanies,
@@ -15,12 +15,19 @@ import {
   type InvoiceView,
   type TicketFilter,
 } from "./api-client";
+import type { PartnerPerson } from "./bootstrap";
 import type { Ticket } from "../types";
 
 const polling = { refreshInterval: 2000 };
 
-export function useBootstrap() {
-  return useSWR<Bootstrap, ApiError>("/api/bootstrap", () => getBootstrap(), polling);
+export function useBootstrap(): SWRResponse<Bootstrap, ApiError>;
+export function useBootstrap(companyId: string | undefined): SWRResponse<Bootstrap<PartnerPerson>, ApiError>;
+export function useBootstrap(companyId?: string): SWRResponse<Bootstrap, ApiError> | SWRResponse<Bootstrap<PartnerPerson>, ApiError> {
+  return useSWR(
+    companyId === undefined ? "/api/bootstrap" : ["/api/bootstrap", companyId] as const,
+    () => getBootstrap(companyId),
+    polling,
+  );
 }
 
 export function useTickets(filter: TicketFilter = {}) {

@@ -59,6 +59,13 @@ describe("companyRating (system-design section 7 examples)", () => {
     expect(c.status).toBe("blacklisted");
   });
 
+  it("1,1,1,8,9 → -0.30 neutral, stays active", () => {
+    const c = company([1, 1, 1, 8, 9]);
+    expect(companyRating(c)).toMatchObject({ score: -0.3, label: "neutral" });
+    expect(applyBlacklist(c)).toBe(false);
+    expect(c.status).toBe("active");
+  });
+
   it("the 5th review switches the rating on", () => {
     const c = company([8, 9, 8, 9]);
     expect(companyRating(c).label).toBe("new");
