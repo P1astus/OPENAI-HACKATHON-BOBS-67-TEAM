@@ -5,7 +5,19 @@ import { estimateCost, haversineKm, rankOptions } from "./matching";
 import { seedSchemas, formatZodError } from "./schemas";
 import { addDays, addMinutes, berlinTime, workdaySlots } from "./time";
 
+export type VoiceAttempt = {
+  ticket_id: string;
+  company_id: string;
+  generation: number;
+  attempt_id: string;
+  acceptsLegacyResult: boolean;
+};
+
+type VoiceCalls = Record<string, { companies: string[]; latest?: VoiceAttempt }>;
+
 export type State = {
+  generation: number;
+  voiceCalls: VoiceCalls;
   properties: Property[];
   units: Unit[];
   people: Person[];
@@ -46,7 +58,8 @@ async function readSeedFiles(): Promise<State> {
     if (!parsed.success) throw new Error(`data/${name}.json: ${formatZodError(parsed.error)}`);
     return [name, parsed.data] as const;
   }));
-  return Object.fromEntries(entries) as State;
+  const data = Object.fromEntries(entries) as Omit<State, "generation" | "voiceCalls">;
+  return { ...data, generation: 0, voiceCalls: {} };
 }
 
 /** Give every active partner at least 6 free future slots, skipping times already booked. */
@@ -208,5 +221,5 @@ export function builtinSeed(now = Date.now()): State {
   // The tap appointment already occupies AquaFix's first slot.
   byId.c_aquafix.calendar_slots = byId.c_aquafix.calendar_slots.filter((s) => s !== tickets[0].appointment_at);
 
-  return { properties, units, people, companies, tickets, invoices };
+  return { generation: 0, voiceCalls: {}, properties, units, people, companies, tickets, invoices };
 }

@@ -71,7 +71,7 @@ Get 2 to 3 concrete appointment start times (day + start time) when the company 
 
 ## 4. Dynamic variables
 
-The app sends all eight values with each outbound call. The examples use demo data. [`callVariables`](../lib/agent/voice.ts)
+The app sends these values with each outbound call. The examples use demo data. [`callVariables`](../lib/agent/voice.ts)
 
 | Name | Example | Source |
 | --- | --- | --- |
@@ -81,7 +81,8 @@ The app sends all eight values with each outbound call. The examples use demo da
 | `street_and_postcode` | Musterstraße 12, 52062 | Building street address and postcode |
 | `preferred_days` | the next three working days, between 8:00 and 17:00 | Fixed preference in `callVariables` |
 | `ticket_id` | `t_…` | Repair ticket ID |
-| `current_date` | `2026-11-20` | Server's current UTC date in `YYYY-MM-DD` |
+| `attempt_id` | UUID | ID for this call attempt |
+| `current_date` | `2026-11-20` | Current Berlin date in `YYYY-MM-DD` |
 | `time_zone` | `Europe/Berlin` | Fixed call timezone in `callVariables` |
 
 ## 5. Webhook tool `submit_slots`
@@ -94,7 +95,7 @@ The app sends all eight values with each outbound call. The examples use demo da
 | Response timeout | 20 s |
 | Success response | `{ "ok": true }` |
 
-The JSON Schema describes the tool's request body. Bind `ticket_id` and `company_id` directly to the dynamic variables with the same names, so the model cannot invent these IDs. The model supplies `slots` and `summary`. [ElevenLabs webhook tool configuration](https://elevenlabs.io/docs/eleven-agents/customization/tools/webhook-tools)
+The JSON Schema describes the tool's request body. Bind `ticket_id`, `company_id` and `attempt_id` directly to the dynamic variables with the same names. The model supplies `slots` and `summary`. The callback needs `attempt_id` when calling the same company again for a ticket, including seed tickets reused after a reset. [ElevenLabs webhook tool configuration](https://elevenlabs.io/docs/eleven-agents/customization/tools/webhook-tools)
 
 ```json
 {
@@ -103,6 +104,7 @@ The JSON Schema describes the tool's request body. Bind `ticket_id` and `company
   "properties": {
     "ticket_id": { "type": "string", "pattern": "^t_" },
     "company_id": { "type": "string", "pattern": "^c_" },
+    "attempt_id": { "type": "string", "format": "uuid" },
     "slots": {
       "type": "array",
       "minItems": 0,
@@ -233,7 +235,7 @@ For the manual fallback, an owner or admin can open a ticket in `needs_human` or
 | `VOICE_TEST_TO_NUMBER` | `<VERIFIED_DEMO_PHONE_NUMBER>` routes all demo calls to the teammate. |
 | `VOICE_WEBHOOK_SECRET` | `<VOICE_WEBHOOK_SECRET>` matches the static header value in the ElevenLabs tool. |
 
-Run this with `VOICE_WEBHOOK_SECRET` set in your shell from the configured value. Leave `t_unknown_test` as a nonexistent ticket. The expected result is `404`. To check authentication, replace the header value with the literal placeholder `<WRONG_WEBHOOK_SECRET>` and expect `401`.
+Run this with `VOICE_WEBHOOK_SECRET` set in your shell from the configured value. Leave `t_unknown_test` as a nonexistent ticket. The expected result is `409`. To check authentication, replace the header value with the literal placeholder `<WRONG_WEBHOOK_SECRET>` and expect `401`.
 
 ```bash
 curl -i -X POST 'https://centrix-fix.vercel.app/api/agent/voice-result' \

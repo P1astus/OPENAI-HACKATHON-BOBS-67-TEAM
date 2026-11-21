@@ -21,7 +21,10 @@ export const createTicketBody = z.object({
   claim: z.string().trim().min(3, "Describe the problem in a few words").max(2000, "Keep the description under 2000 characters"),
 });
 
-export const assignBody = z.object({ company_id: id("c_") });
+export const assignBody = z.object({
+  company_id: id("c_"),
+  actor: z.enum(["owner", "admin"]).default("admin"),
+});
 export const clarifyBody = z.object({
   note: z.string().trim().min(5, "Describe what you found in at least 5 characters").max(1000, "Keep the note to 1000 characters"),
   actor: z.enum(["owner", "admin"]),
@@ -42,7 +45,7 @@ export const bookBody = z.object({
 });
 
 export const completeBody = z.object({
-  amount_eur: z.number().positive("Enter a positive invoice amount").max(100_000).finite(),
+  amount_eur: z.number().min(0.01).max(100_000).multipleOf(0.01, "Enter an amount with at most two decimal places"),
 });
 
 export const rateBody = z.object({
@@ -52,6 +55,7 @@ export const rateBody = z.object({
 export const voiceResultBody = z.object({
   ticket_id: id("t_"),
   company_id: id("c_"),
+  attempt_id: z.uuid().optional(),
   slots: z.array(iso).max(10),
   summary: z.string().max(1000).default(""),
 });

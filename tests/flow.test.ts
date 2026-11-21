@@ -2,13 +2,19 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Ticket, Triage } from "@/types";
 
 // Stub only the model part of triage; safety rules and the code decision stay real.
-const modelTriage = vi.hoisted(() => ({ value: null as null | Omit<Triage, "needs_human" | "reason"> }));
+const modelTriage = vi.hoisted(() => ({
+  value: null as null | Omit<Triage, "needs_human" | "reason">,
+  wait: null as Promise<void> | null,
+  entered: null as (() => void) | null,
+}));
 vi.mock("@/lib/agent/triage", async (orig) => {
   const real = await orig<typeof import("@/lib/agent/triage")>();
   return {
     ...real,
     triageClaim: async (...args: Parameters<typeof real.triageClaim>) => {
       if (real.emergencyHit(args[0]) || !modelTriage.value) return real.triageClaim(...args);
+      modelTriage.entered?.();
+      if (modelTriage.wait) await modelTriage.wait;
       return { triage: real.decide(modelTriage.value), latency_ms: 1 };
     },
   };
@@ -26,9 +32,17 @@ const store = await import("@/lib/store");
 const { GET: listTickets } = await import("@/app/api/tickets/route");
 const { GET: getTicket } = await import("@/app/api/tickets/[id]/route");
 const { GET: getBootstrap } = await import("@/app/api/bootstrap/route");
+const { POST: voiceResult } = await import("@/app/api/agent/voice-result/route");
+const { POST: assign } = await import("@/app/api/tickets/[id]/assign/route");
 
 const heating = { trade: "heating", urgency: "urgent", confidence: 0.93, summary: "All radiators cold.", source: "model" } as const;
 const locksmith = { trade: "locksmith", urgency: "urgent", confidence: 0.95, summary: "Front door lock broken.", source: "model" } as const;
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((done) => { resolve = done; });
+  return { promise, resolve };
+}
 
 beforeEach(async () => {
   delete process.env.OPENAI_API_KEY;
@@ -37,10 +51,15 @@ beforeEach(async () => {
   delete process.env.ELEVENLABS_AGENT_ID;
   delete process.env.N8N_WEBHOOK_URL;
   modelTriage.value = null;
+  modelTriage.wait = null;
+  modelTriage.entered = null;
   await store.reset();
 });
 
-afterEach(() => vi.unstubAllEnvs());
+afterEach(() => {
+  vi.unstubAllEnvs();
+  vi.restoreAllMocks();
+});
 
 describe("clarifying a repair", () => {
   const note = "The heating radiator in the hallway is ice cold and makes no sound";
@@ -62,6 +81,18 @@ describe("clarifying a repair", () => {
     const ticket = await flow.clarifyTicket("t_unclear", note, "admin");
     expect(ticket).toMatchObject({
       status: "matched", company_id: "c_warmhaus", triage: { trade: "heating", source: "rules", needs_human: false },
+    });
+  });
+
+  it("checks for whole-home power loss before matching from clarification keywords", async () => {
+    const local = await flow.clarifyTicket("t_unclear", "One socket is dead", "owner");
+    expect(local).toMatchObject({ status: "matched", triage: { trade: "electrical", needs_human: false } });
+
+    await store.reset();
+    const outage = await flow.clarifyTicket("t_unclear", "Every socket is dead", "owner");
+    expect(outage).toMatchObject({
+      status: "emergency", company_id: null, proposed_slots: [],
+      triage: { trade: "electrical", urgency: "emergency", needs_human: true, source: "rules" },
     });
   });
 
@@ -318,6 +349,153 @@ describe("store concurrency and booking", () => {
     const updated = flow.findTicket(await store.getState(), second.id);
     expect(updated).toMatchObject({ status: "needs_human", proposed_slots: [] });
     expect(updated.events.at(-1)).toMatchObject({ message: "No free times left in WarmHaus Heizungstechnik's calendar." });
+  });
+});
+
+describe("reset and voice attempt isolation", () => {
+  function enableVoice() {
+    vi.stubEnv("ELEVENLABS_API_KEY", "test-key");
+    vi.stubEnv("ELEVENLABS_AGENT_ID", "test-agent");
+    vi.stubEnv("ELEVENLABS_PHONE_NUMBER_ID", "test-number");
+    vi.stubEnv("VOICE_WEBHOOK_SECRET", "test-secret");
+  }
+
+  const started = () => Response.json({ success: true });
+  const failed = () => Response.json({ success: false }, { status: 502 });
+  const assignPhone = () => flow.assignTicket("t_unclear", "c_hauswerk");
+  const latest = async () => (await store.getState()).voiceCalls.t_unclear.latest!;
+  const slot = () => new Date(Date.now() + 86_400_000).toISOString();
+  function callback(time: string, attempt_id?: string) {
+    return voiceResult(new Request("http://localhost/api/agent/voice-result", {
+      method: "POST",
+      headers: { "x-webhook-secret": "test-secret" },
+      body: JSON.stringify({ ticket_id: "t_unclear", company_id: "c_hauswerk", slots: [time], attempt_id }),
+    }));
+  }
+
+  it("defaults legacy state to generation zero and increments on every reset", async () => {
+    await store.mutate((s) => {
+      delete (s as Partial<typeof s>).generation;
+      delete (s as Partial<typeof s>).voiceCalls;
+    });
+    expect((await store.getState()).generation).toBe(0);
+    await Promise.all([store.reset(), store.reset()]);
+    expect((await store.getState()).generation).toBe(2);
+  });
+
+  it("rejects a repair report whose triage completes after reset", async () => {
+    const entered = deferred<void>();
+    const triageWait = deferred<void>();
+    modelTriage.value = heating;
+    modelTriage.wait = triageWait.promise;
+    modelTriage.entered = entered.resolve;
+    const before = await store.getState();
+    const repair = flow.createTicket({ tenant_id: "p_lena", unit_id: "unit_2l", claim: "All radiators are cold." });
+    const rejected = expect(repair).rejects.toMatchObject({ status: 409 });
+    await entered.promise;
+    await store.reset();
+    triageWait.resolve();
+    await rejected;
+    expect((await store.getState()).tickets).toHaveLength(before.tickets.length);
+  });
+
+  it("keeps slots from a legacy callback when call start subsequently fails", async () => {
+    enableVoice();
+    const outcome = deferred<Response>();
+    const fetcher = vi.spyOn(globalThis, "fetch").mockReturnValue(outcome.promise);
+    const assignment = assignPhone();
+    await vi.waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1));
+    const attempt = await latest();
+    const request = JSON.parse(fetcher.mock.calls[0][1]!.body as string);
+    expect(request.conversation_initiation_client_data.dynamic_variables.attempt_id).toBe(attempt.attempt_id);
+    const time = slot();
+    expect((await callback(time)).status).toBe(200);
+    outcome.resolve(failed());
+    const ticket = await assignment;
+    expect(ticket).toMatchObject({ status: "matched", proposed_slots: [time] });
+    expect(ticket.events.at(-1)?.type).toBe("slots_proposed");
+  });
+
+  it.each([false, true])("ignores superseded outcomes and callbacks (reset: %s)", async (reset) => {
+    enableVoice();
+    const outcome = deferred<Response>();
+    const fetcher = vi.spyOn(globalThis, "fetch").mockReturnValueOnce(outcome.promise).mockResolvedValueOnce(started());
+    const oldAssignment = assignPhone();
+    const rejected = reset ? expect(oldAssignment).rejects.toMatchObject({ status: 409 }) : null;
+    await vi.waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1));
+    const old = await latest();
+    if (reset) {
+      await store.reset();
+      expect((await callback(slot(), old.attempt_id)).status).toBe(409);
+    }
+    await assignPhone();
+    const current = await latest();
+    expect(current.attempt_id).not.toBe(old.attempt_id);
+    expect(current.generation).toBe(old.generation + Number(reset));
+    expect((await callback(slot(), old.attempt_id)).status).toBe(409);
+    expect((await callback(slot())).status).toBe(409);
+    outcome.resolve(failed());
+    await (rejected ?? oldAssignment);
+    const time = slot();
+    expect((await callback(time, current.attempt_id)).status).toBe(200);
+    expect(flow.findTicket(await store.getState(), "t_unclear")).toMatchObject({ status: "matched", proposed_slots: [time] });
+  });
+});
+
+describe("company removal", () => {
+  const reason = "WarmHaus Heizungstechnik is no longer available.";
+  const warmHaus = (s: Awaited<ReturnType<typeof store.getState>>) => s.companies.find(({ id }) => id === "c_warmhaus")!;
+
+  it("sends an awaiting-owner ticket for review during approval if the company is inactive", async () => {
+    await store.mutate((s) => { warmHaus(s).status = "blacklisted"; });
+    const ticket = await flow.approveTicket("t_boiler", true);
+    expect(ticket).toMatchObject({ status: "needs_human", proposed_slots: [], triage: { needs_human: true } });
+    expect(ticket.events.at(-1)?.message).toBe(reason);
+  });
+
+  it("returns 409 for booking and persists the transition to human review", async () => {
+    const ticket = await flow.approveTicket("t_boiler", true);
+    await store.mutate((s) => { warmHaus(s).status = "blacklisted"; });
+    await expect(flow.bookSlot(ticket.id, ticket.proposed_slots[0], [])).rejects.toMatchObject({ status: 409, message: reason });
+    const saved = flow.findTicket(await store.getState(), ticket.id);
+    expect(saved).toMatchObject({ status: "needs_human", proposed_slots: [], consent: null });
+    expect(saved.events.at(-1)?.message).toBe(reason);
+  });
+
+  it("moves all open assignments to human review when a rating blacklists the company", async () => {
+    modelTriage.value = heating;
+    const match = await flow.createTicket({ tenant_id: "p_lena", unit_id: "unit_2l", claim: "All radiators are cold." });
+    await store.mutate((s) => { warmHaus(s).reviews = warmHaus(s).reviews.slice(0, 4).map((review) => ({ ...review, rating: 1 })); });
+    await flow.rateTicket("t_heater", 1);
+    const state = await store.getState();
+    expect(warmHaus(state).status).toBe("blacklisted");
+    for (const id of [match.id, "t_boiler"]) {
+      const ticket = flow.findTicket(state, id);
+      expect(ticket).toMatchObject({ status: "needs_human", proposed_slots: [], appointment_at: null });
+      expect(ticket.events.at(-1)?.message).toBe(reason);
+    }
+    expect(flow.findTicket(state, "t_knock").status).toBe("scheduled");
+    await expect(flow.bookSlot(match.id, match.proposed_slots[0], [])).rejects.toMatchObject({ status: 409, message: reason });
+  });
+});
+
+it.each([["owner", "owner"], [undefined, "admin"]])("records manual assignment with actor %s", async (actor, expectedActor) => {
+  const before = flow.findTicket(await store.getState(), "t_unclear");
+  expect(before.candidates.some(({ company_id }) => company_id === "c_warmhaus")).toBe(false);
+  const response = await assign(new Request("http://localhost/api/tickets/t_unclear/assign", {
+    method: "POST", body: JSON.stringify({ company_id: "c_warmhaus", actor }),
+  }), { params: Promise.resolve({ id: "t_unclear" }) });
+  expect(response.status).toBe(200);
+  const ticket: Ticket = await response.json();
+  expect(ticket).toMatchObject({
+    status: "matched", company_id: "c_warmhaus",
+    triage: { needs_human: false, reason: `Assigned manually by the ${expectedActor}.` },
+  });
+  expect(ticket.events).toContainEqual(expect.objectContaining({ actor: expectedActor, type: "matched" }));
+  expect(ticket.candidates.slice(0, -1)).toEqual(before.candidates);
+  expect(ticket.candidates.at(-1)).toMatchObject({
+    company_id: "c_warmhaus", est_cost_eur: ticket.est_cost_eur,
+    match: expect.any(Number), parts: { reviews: expect.any(Number), price: expect.any(Number), distance: expect.any(Number) },
   });
 });
 

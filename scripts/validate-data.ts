@@ -11,14 +11,15 @@ const dir = path.join(process.cwd(), "data");
 const errors: string[] = [];
 const present = SEED_FILES.filter((f) => existsSync(path.join(dir, `${f}.json`)));
 
-let state: State;
+type SeedData = Pick<State, (typeof SEED_FILES)[number]>;
+let state: SeedData;
 if (present.length === 0) {
   console.log("No data/*.json files yet: checking the built-in seed (lib/seed.ts).");
   state = builtinSeed();
 } else {
   const missing = SEED_FILES.filter((f) => !present.includes(f));
   if (missing.length) errors.push(`Missing files: ${missing.map((f) => `data/${f}.json`).join(", ")}. The app uses data/ only when all six exist.`);
-  const loaded: Partial<State> = {};
+  const loaded: Partial<SeedData> = {};
   for (const name of present) {
     const file = `data/${name}.json`;
     let raw: unknown;
@@ -40,9 +41,9 @@ const P = ids(state.properties), U = ids(state.units), C = ids(state.companies),
 const people = new Map(state.people.map((p) => [p.id, p]));
 const check = (ok: boolean, msg: string) => { if (!ok) errors.push(msg); };
 
-for (const [name, list] of Object.entries(state) as [string, { id: string }[]][]) {
+for (const name of SEED_FILES) {
   const seen = new Set<string>();
-  for (const x of list) { check(!seen.has(x.id), `${name}: duplicate id ${x.id}`); seen.add(x.id); }
+  for (const x of state[name]) { check(!seen.has(x.id), `${name}: duplicate id ${x.id}`); seen.add(x.id); }
 }
 for (const u of state.units) {
   check(P.has(u.property_id), `units ${u.id}: property_id ${u.property_id} doesn't exist`);

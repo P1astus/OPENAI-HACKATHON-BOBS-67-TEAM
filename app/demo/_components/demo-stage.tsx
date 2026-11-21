@@ -54,6 +54,11 @@ export function DemoStage() {
     setStepIndex(0);
   }
 
+  function changeStep(delta: number) {
+    setFocused(null);
+    setStepIndex((index) => index + delta);
+  }
+
   return (
     <div className="flex min-h-dvh flex-col min-[1200px]:h-dvh min-[1200px]:overflow-hidden">
       <header className="glass sticky top-0 z-10 grid shrink-0 grid-cols-[1fr_auto] items-center gap-x-4 border-b px-4 py-3 min-[1200px]:grid-cols-[1fr_auto_1fr] min-[1200px]:px-6">
@@ -65,7 +70,7 @@ export function DemoStage() {
             type="button"
             variant="ghost"
             disabled={stepIndex === 0}
-            onClick={() => setStepIndex((index) => index - 1)}
+            onClick={() => changeStep(-1)}
           >
             <ChevronLeft aria-hidden="true" />
             Back
@@ -77,7 +82,7 @@ export function DemoStage() {
             type="button"
             variant="outline"
             disabled={stepIndex === steps.length - 1}
-            onClick={() => setStepIndex((index) => index + 1)}
+            onClick={() => changeStep(1)}
           >
             Next
             <ChevronRight aria-hidden="true" />

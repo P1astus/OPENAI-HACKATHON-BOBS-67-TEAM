@@ -7,20 +7,36 @@ export const addMinutes = (iso: string, minutes: number) =>
   new Date(Date.parse(iso) + minutes * 60_000).toISOString();
 export const roundMoney = (amount: number) => Math.round((amount + Number.EPSILON) * 100) / 100;
 
+export const BERLIN_TIME_ZONE = "Europe/Berlin";
 const berlinParts = new Intl.DateTimeFormat("en-GB", {
-  timeZone: "Europe/Berlin", year: "numeric", month: "2-digit", day: "2-digit", weekday: "short",
+  timeZone: BERLIN_TIME_ZONE, year: "numeric", month: "2-digit", day: "2-digit",
 });
-const berlinOffset = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Berlin", timeZoneName: "longOffset" });
+const berlinOffset = new Intl.DateTimeFormat("en-GB", { timeZone: BERLIN_TIME_ZONE, timeZoneName: "longOffset" });
+
+// Use UTC calendar arithmetic on Berlin's date fields to advance days without crossing DST.
+function berlinCivilDay(from: number): number {
+  const parts = berlinParts.formatToParts(from);
+  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value);
+  return Date.UTC(get("year"), get("month") - 1, get("day"));
+}
+
+export const berlinDate = (from: number) => new Date(berlinCivilDay(from)).toISOString().slice(0, 10);
+
+function offsetMinutes(at: number): number {
+  const offset = berlinOffset.formatToParts(at).find((p) => p.type === "timeZoneName")?.value ?? "GMT";
+  const match = /GMT([+-])(\d{2}):(\d{2})/.exec(offset);
+  return match ? (match[1] === "-" ? -1 : 1) * (Number(match[2]) * 60 + Number(match[3])) : 0;
+}
+
+function berlinHour(day: number, hour: number): string {
+  const wallTime = day + hour * 3_600_000;
+  const guess = wallTime - offsetMinutes(wallTime) * 60_000;
+  return new Date(wallTime - offsetMinutes(guess) * 60_000).toISOString();
+}
 
 /** UTC ISO for a Berlin wall-clock time `hour:00` on the Berlin calendar day `dayOffset` days after `from`. */
 export function berlinTime(from: number, dayOffset: number, hour: number): string {
-  const parts = berlinParts.formatToParts(from);
-  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value);
-  const guess = new Date(Date.UTC(get("year"), get("month") - 1, get("day") + dayOffset, hour));
-  const offset = berlinOffset.formatToParts(guess).find((p) => p.type === "timeZoneName")?.value ?? "GMT";
-  const match = /GMT([+-])(\d{2}):(\d{2})/.exec(offset);
-  const minutes = match ? (match[1] === "-" ? -1 : 1) * (Number(match[2]) * 60 + Number(match[3])) : 0;
-  return new Date(guess.getTime() - minutes * 60_000).toISOString();
+  return berlinHour(berlinCivilDay(from) + dayOffset * DAY_MS, hour);
 }
 
 /**
@@ -29,10 +45,12 @@ export function berlinTime(from: number, dayOffset: number, hour: number): strin
  */
 export function workdaySlots(from: number, firstDay: number, days: number, hours = [9, 11, 14]): string[] {
   const slots: string[] = [];
+  const today = berlinCivilDay(from);
   for (let offset = firstDay; slots.length < days * hours.length && offset < firstDay + days * 3; offset++) {
-    const weekday = berlinParts.formatToParts(from + offset * DAY_MS).find((p) => p.type === "weekday")?.value;
-    if (weekday === "Sat" || weekday === "Sun") continue;
-    for (const hour of hours) slots.push(berlinTime(from, offset, hour));
+    const day = today + offset * DAY_MS;
+    const weekday = new Date(day).getUTCDay();
+    if (weekday === 0 || weekday === 6) continue;
+    for (const hour of hours) slots.push(berlinHour(day, hour));
   }
   return slots;
 }
