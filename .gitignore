@@ -26,3 +26,7 @@ npm-debug.log*
 __pycache__/
 .vercel
 /qa-screens/
+
+# pitch video takes and local tooling
+/scripts/video/out/
+/scripts/video/node_modules/
